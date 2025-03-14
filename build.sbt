@@ -1,5 +1,7 @@
+lazy val spamvasVersion = "0.1.0"
+
 ThisBuild / organization := "se.bjornregnell"
-ThisBuild / version      := "0.1.1-SNAPSHOT"
+ThisBuild / version      := spamvasVersion
 ThisBuild / scalaVersion := "3.6.4"
 
 fork := true
@@ -20,7 +22,11 @@ lazy val common = (project in file("common"))
 
 lazy val client = (project in file("client"))
   .settings(
-    // other settings
+    name := "SpamvasClient",
+    scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
+
+    assembly / assemblyJarName := s"SpamvasClient-assembly-$spamvasVersion.jar",
+    assembly / mainClass := Some("spamvas.ClientMain"),
   )
   .dependsOn(common)
 
@@ -29,7 +35,7 @@ lazy val server = (project in file("server"))
     name := "SpamvasServer",
     scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
 
-    assembly / assemblyJarName := "SpamvasServer.jar",
+    assembly / assemblyJarName := s"SpamvasServer-assembly-$spamvasVersion.jar",
     assembly / mainClass := Some("spamvas.ServerMain"),
   )
   .dependsOn(common)
