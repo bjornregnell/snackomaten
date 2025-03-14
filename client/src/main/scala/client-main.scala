@@ -1,4 +1,6 @@
 package spamvas 
 
-@main def ClientMain = 
-  println("Hello Client")
+@main def ClientMain(args: String*) = 
+  println("Hello Spamvas Client!     Ctrl+D to stop spamming")
+  val c = Client()
+  c.start()

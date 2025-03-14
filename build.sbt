@@ -2,6 +2,11 @@ ThisBuild / organization := "se.bjornregnell"
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.6.4"
 
+fork := true
+run / javaOptions += "-Xmx8G"
+outputStrategy := Some(StdoutOutput)
+run / connectInput := true
+
 lazy val root = (project in file("."))
   .aggregate(common, client, server)
   .settings(
@@ -21,7 +26,11 @@ lazy val client = (project in file("client"))
 
 lazy val server = (project in file("server"))
   .settings(
-    // other settings
+    name := "SpamvasServer",
+    scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
+
+    assembly / assemblyJarName := "SpamvasServer.jar",
+    assembly / mainClass := Some("spamvas.ServerMain"),
   )
   .dependsOn(common)
 
