@@ -1,5 +1,5 @@
 ThisBuild / organization := "se.bjornregnell"
-ThisBuild / version      := "0.1.0-SNAPSHOT"
+ThisBuild / version      := "0.1.1-SNAPSHOT"
 ThisBuild / scalaVersion := "3.6.4"
 
 fork := true
