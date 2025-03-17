@@ -5,6 +5,8 @@ class Server(val port: Int):
   import scala.concurrent.Future
   import scala.util.{Try , Success, Failure}
 
+  val quit = Concurrent.Flag()
+
   import scala.jdk.CollectionConverters.*
   val allConnections = java.util.concurrent.ConcurrentLinkedQueue[Network.Connection]()
 
@@ -42,4 +44,4 @@ class Server(val port: Int):
   def start(): Unit = 
     log(s"[info] Server starting at: $serverPort")
     spawnAcceptLoop()
-    while true do ()
+    while quit.isFalse do ()
