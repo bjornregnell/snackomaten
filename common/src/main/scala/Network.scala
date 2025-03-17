@@ -1,4 +1,4 @@
-package spamvas 
+package snackomaten 
 
 object Network:
   import java.io.{DataInputStream, DataOutputStream}

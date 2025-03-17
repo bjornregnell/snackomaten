@@ -1,4 +1,4 @@
-package spamvas 
+package snackomaten 
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
@@ -58,7 +58,7 @@ class Client(val host: String = "bjornix.cs.lth.se", val port: Int = 8090) {
   def start(): Unit = {
     Terminal.put("Attempting to connect to server...")
     connect()
-    Terminal.put("Connected to spamvas server!")
+    Terminal.put("Connected to snackomaten server!")
     spawnReceiveLoop()
     cmdLoop()
   }

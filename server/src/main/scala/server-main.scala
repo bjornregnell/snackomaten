@@ -1,6 +1,6 @@
-package spamvas 
+package snackomaten 
 
 @main def ServerMain(port: Int) = 
-  println("Hello Spamvas Server!")
+  println("Hello snackomaten Server!")
   val s = Server(port)
   s.start()

@@ -1,4 +1,4 @@
-package spamvas 
+package snackomaten 
 
 case class Message(text: String)
 object Message:

@@ -1,4 +1,4 @@
-package spamvas 
+package snackomaten 
 
 trait Codec[A]:
   extension (a: A) def encode: Array[Byte]

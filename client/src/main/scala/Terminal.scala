@@ -1,4 +1,4 @@
-package spamvas
+package snackomaten
 
 object Terminal:
   def get(prompt: String = "> "): String = scala.io.StdIn.readLine(prompt)

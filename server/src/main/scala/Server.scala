@@ -1,4 +1,4 @@
-package spamvas 
+package snackomaten 
 
 class Server(val port: Int):
   import scala.concurrent.ExecutionContext.Implicits._

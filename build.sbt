@@ -1,8 +1,10 @@
-lazy val spamvasVersion = "0.1.0"
+lazy val snackomatenVersion = "0.1.0"
 
 ThisBuild / organization := "se.bjornregnell"
-ThisBuild / version      := spamvasVersion
+ThisBuild / version      := snackomatenVersion
 ThisBuild / scalaVersion := "3.6.4"
+
+Global / onChangedBuildSource := IgnoreSourceChanges
 
 fork := true
 run / javaOptions += "-Xmx8G"
@@ -22,21 +24,21 @@ lazy val common = (project in file("common"))
 
 lazy val client = (project in file("client"))
   .settings(
-    name := "SpamvasClient",
+    name := "snackomatenClient",
     scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
 
-    assembly / assemblyJarName := s"SpamvasClient-assembly-$spamvasVersion.jar",
-    assembly / mainClass := Some("spamvas.ClientMain"),
+    assembly / assemblyJarName := s"snackomatenClient-assembly-$snackomatenVersion.jar",
+    assembly / mainClass := Some("snackomaten.ClientMain"),
   )
   .dependsOn(common)
 
 lazy val server = (project in file("server"))
   .settings(
-    name := "SpamvasServer",
+    name := "snackomatenServer",
     scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
 
-    assembly / assemblyJarName := s"SpamvasServer-assembly-$spamvasVersion.jar",
-    assembly / mainClass := Some("spamvas.ServerMain"),
+    assembly / assemblyJarName := s"snackomatenServer-assembly-$snackomatenVersion.jar",
+    assembly / mainClass := Some("snackomaten.ServerMain"),
   )
   .dependsOn(common)
 
