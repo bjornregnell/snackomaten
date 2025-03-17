@@ -31,10 +31,12 @@ object Network:
 
     def toClient(from: ServerPort): Connection = 
       val sock = from.serverSocket.accept()
+      sock.setKeepAlive(true)
       fromSocket(sock)
 
     def toServer(host: String, port: Int): Connection = 
       val sock = Socket(host, port)
+      sock.setKeepAlive(true)
       fromSocket(sock)
 
 end Network
