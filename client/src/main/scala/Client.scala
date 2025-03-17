@@ -9,7 +9,7 @@ import java.net.Socket
 class Client(val host: String = "bjornix.cs.lth.se", val port: Int = 8090) {
 
   val cmdDelayMillis: Long = 50L
-  val cmdPrompt: String ="Spam> "
+  val cmdPrompt: String ="snack> "
 
   @volatile private var connectionOpt: Option[Network.Connection] = None
 
@@ -49,7 +49,7 @@ class Client(val host: String = "bjornix.cs.lth.se", val port: Int = 8090) {
     var continue = true
     while continue do
       val cmd = Terminal.get(cmdPrompt)
-      if cmd == null then continue = false else
+      if cmd == Terminal.CtrlD then continue = false else
         send(cmd)
         Thread.sleep(cmdDelayMillis);
     end while
