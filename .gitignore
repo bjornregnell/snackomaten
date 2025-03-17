@@ -4,6 +4,8 @@
 **/.bloop
 **/.scala-build
 **/target
+**/metals.sbt
+project/project
 
 *.class
 *.log
