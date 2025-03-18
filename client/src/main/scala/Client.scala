@@ -1,30 +1,24 @@
 package snackomaten 
 
-import scala.concurrent.ExecutionContext.Implicits._
-import scala.concurrent.Future
-import scala.util.{Try, Success, Failure}
-
-import java.net.Socket
-
-class Client(val host: String = "bjornix.cs.lth.se", val port: Int = 8090) {
+class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val port: Int = 8090) {
 
   val isListening = Concurrent.ThreadSafe.MutableFlag(false)
 
   @volatile private var connectionOpt: Option[Network.Connection] = None
 
   def connect() = {
-    val sock = new Socket(host, port)
+    val sock = java.net.Socket(host, port)
     connectionOpt = Some(Network.Connection.fromSocket(sock))
     Terminal.putGreen(s"Connected to $host:$port")
   }
 
   def send(msg: String): Unit = {
     Terminal.putGreen(s"Sending $msg via $connectionOpt: isActive=${connectionOpt.get.isActive}")
-    connectionOpt.get.write(msg)
+    connectionOpt.get.write(s"userId=$userId;msg=$msg")
   }
 
   def spawnReceiveLoop() = 
-    Future:
+    Concurrent.Run:
       Terminal.putRed("New thread started!")
       while isListening.isTrue do
         Terminal.putRed(s"Listening for messages until Ctrl+D in ${Thread.currentThread()}")
