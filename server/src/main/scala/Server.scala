@@ -1,10 +1,6 @@
 package snackomaten 
 
 class Server(val port: Int):
-  import scala.concurrent.ExecutionContext.Implicits._
-  import scala.concurrent.Future
-  import scala.util.{Try , Success, Failure}
-
   val quit = Concurrent.ThreadSafe.MutableFlag()
 
   import scala.jdk.CollectionConverters.*
@@ -20,26 +16,25 @@ class Server(val port: Int):
 
   def startMsg(): Unit = log(s"Server started, port: $port")
 
-  def spawnAcceptLoop() = Future:
-    while (true) {
+  def spawnAcceptLoop() = Concurrent.Run:
+    while quit.isFalse do
       val connection = Network.Connection.toClient(from = serverPort)
       log(s"[INFO] New connection created: $connection")
       allConnections.add(connection)
       spawnReceiveLoop(connection)
       log(s"[INFO] Number of connections: ${allConnections.size()}")
-    }
+    end while
 
 
-  def spawnReceiveLoop(connection: Network.Connection) =  
-    Future {
-      while (true) {
-        val msg = connection.read() 
-        log(s"[Info] Got spam '$msg'")
-        connection.write(s"Echo spam: '$msg'")
-        for c <- allConnections.asScala do
-          c.write(s"Everyone spammed: $msg")
-      }
-    }
+  def spawnReceiveLoop(connection: Network.Connection) =  Concurrent.Run:
+    while quit.isFalse do
+      val msg = connection.read() 
+      log(s"[Info] Received: '$msg'")
+      connection.write(s"Server accepted: '$msg'")
+      for c <- allConnections.asScala do
+        Terminal.putGreen(s"Broadcasting on connection $c: '$msg'")
+        c.write(s"Server broadcast $c: '$msg'")
+    end while
 
   def start(): Unit = 
     log(s"[info] Server starting at: $serverPort")
