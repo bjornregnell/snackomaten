@@ -5,7 +5,7 @@ class Server(val port: Int):
   import scala.concurrent.Future
   import scala.util.{Try , Success, Failure}
 
-  val quit = Concurrent.Flag()
+  val quit = Concurrent.ThreadSafe.MutableFlag()
 
   import scala.jdk.CollectionConverters.*
   val allConnections = java.util.concurrent.ConcurrentLinkedQueue[Network.Connection]()
@@ -33,7 +33,7 @@ class Server(val port: Int):
   def spawnReceiveLoop(connection: Network.Connection) =  
     Future {
       while (true) {
-        val msg = connection.read
+        val msg = connection.read() 
         log(s"[Info] Got spam '$msg'")
         connection.write(s"Echo spam: '$msg'")
         for c <- allConnections.asScala do
