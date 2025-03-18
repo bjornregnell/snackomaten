@@ -13,25 +13,18 @@ object Terminal:
     .build
     .asInstanceOf[jline.reader.impl.LineReaderImpl] //cast hack to expose set/getCompleter
 
-  var promptColor = BLUE
-
-  var defaultPrompt = "snack>"
-
-  def renderDefaultColorPrompt() = s"${promptColor}snack>${if promptColor.nonEmpty then RESET else ""} "
-
-  def get(prompt: String = renderDefaultColorPrompt(), default: String = ""): String =
-    util.Try(reader.readLine(prompt, null: Character, default)).getOrElse(CtrlD)
+  def get(): String = util.Try(reader.readLine("", null: Character, "")).getOrElse(CtrlD)
 
   def getSecret(prompt: String = "Enter secret: ", mask: Char = '*'): String = 
     util.Try(reader.readLine(prompt, mask)).getOrElse(CtrlD)
 
-  def isOk(msg: String = ""): Boolean = get(s"$msg (Y/n): ") == "Y"
-  
-  def put(s: String): Unit = terminal.writer().println(s)
+  def prompt(s: String, color: String = BLUE) = print(s"$color$s$RESET")
 
-  def newLine(): Unit = terminal.writer().println()
+  def put(s: String): Unit = println(s)
 
-  def putColor(s: String, col: String) = terminal.writer().println(s"$col$s$RESET")
+  def newLine(): Unit = println()
+
+  def putColor(s: String, color: String) = println(s"$color$s$RESET")
 
   def putGreen(s: String): Unit = putColor(s, GREEN)
 
