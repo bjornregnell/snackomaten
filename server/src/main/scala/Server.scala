@@ -12,31 +12,44 @@ class Server(val port: Int):
 
   lazy val serverPort = Network.openServerPort(port)
 
-  def log(msg: String) = println(s"\n$outputPrompt $msg")
+  def log(msg: String) = Terminal.put(s"$outputPrompt $msg")
 
   def startMsg(): Unit = log(s"Server started, port: $port")
 
   def spawnAcceptLoop() = Concurrent.Run:
-    while quit.isFalse do
-      val connection = Network.Connection.toClient(from = serverPort)
-      log(s"[INFO] New connection created: $connection")
-      allConnections.add(connection)
-      spawnReceiveLoop(connection)
-      log(s"[INFO] Number of connections: ${allConnections.size()}")
-    end while
+    try
+      while quit.isFalse do
+        val connection = Network.Connection.toClient(from = serverPort)
+        log(s"New connection created: $connection")
+        allConnections.add(connection)
+        spawnReceiveLoop(connection)
+        log(s"Number of connections: ${allConnections.size()}")
+      end while
+    catch case e: Throwable =>
+      Terminal.showError(e)
+      Terminal.alert("FATAL ERROR. Accept Loop terminated.")
+      quit.setTrue()
 
 
   def spawnReceiveLoop(connection: Network.Connection) =  Concurrent.Run:
-    while quit.isFalse do
-      val msg = connection.read() 
-      log(s"[Info] Received: '$msg'")
-      connection.write(s"Server accepted: '$msg'")
-      for c <- allConnections.asScala do
-        Terminal.putGreen(s"Broadcasting on connection $c: '$msg'")
-        c.write(s"Server broadcast $c: '$msg'")
-    end while
+    try
+      while quit.isFalse do
+        val msg = connection.read() 
+        log(s"Received: '$msg'")
+        connection.write(s"[INFO] snackomaten got your message: $msg")
+        for c <- allConnections.asScala if c.port != connection.port do
+          Terminal.putGreen(s"Broadcasting to $c:") 
+          Terminal.putYellow(msg)
+          c.write(msg)
+      end while
+    catch case e: Throwable =>
+      Terminal.showError(e)
+      Terminal.putRed(s"Connection lost: $connection \nReceive Loop terminated.")
+      allConnections.remove(connection)
+      log(s"Number of connections: ${allConnections.size()}")
 
   def start(): Unit = 
-    log(s"[info] Server starting at: $serverPort")
+    log(s"Server starting at: $serverPort")
     spawnAcceptLoop()
     while quit.isFalse do ()
+    Terminal.put("Server terminates. Goodbye!")

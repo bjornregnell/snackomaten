@@ -18,11 +18,13 @@ object Network:
   
   def openServerPort(port: Int): ServerPort = ServerPort(ServerSocket(port))
 
-  case class Connection(sock: Socket, dis: DataInputStream, dos: DataOutputStream):
+  class Connection(val sock: Socket, val dis: DataInputStream, val dos: DataOutputStream):
     def read(): String = dis.readUTF
+    def port: Int = sock.getPort()
     def isActive: Boolean = sock.isBound && !sock.isClosed && sock.isConnected && !sock.isInputShutdown && !sock.isOutputShutdown
     def write(msg: String): Unit = writeAndFlush(dos, msg)
     def close(): Unit = { sock.close; dis.close; dos.close }
+    override def toString: String = s"Connection($sock)"
   
   object Connection:
     def fromSocket(socket: Socket): Connection = 

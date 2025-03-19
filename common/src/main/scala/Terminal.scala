@@ -30,9 +30,17 @@ object Terminal:
 
   def putRed(s: String): Unit = putColor(s, RED)
 
+  def putYellow(s: String): Unit = putColor(s, YELLOW)
+
   def alert(s: String) = putColor(s, RED_B);
 
   def removeCompletions(): Unit = reader.setCompleter(null)
+
+  def showError(e: Throwable, showStackTrace: Boolean = false): Unit =
+    Terminal.putRed(s"ERROR: $e")
+    if showStackTrace then 
+      Terminal.putRed(Thread.currentThread().getStackTrace().array.mkString("\n"))
+
 
   def setCompletions(first: Seq[String], second: Seq[String]): Unit =
     removeCompletions()
