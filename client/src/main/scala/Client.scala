@@ -6,6 +6,8 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
 
   val isWatching = Concurrent.ThreadSafe.MutableFlag(true)
 
+  val quit = Concurrent.ThreadSafe.MutableFlag(false)
+
   val isShowStackTrace = false
 
   @volatile private var connectionOpt: Option[Network.Connection] = None
@@ -18,7 +20,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
     connectionOpt = None
     Terminal.putRed("No connection.")
 
-  final def retryConnectIfNoActiveConnection(): Unit = this.synchronized:
+  final def retryConnectIfNoActiveConnection(): Unit = synchronized:
     var continue = false
     while 
       continue = false
@@ -46,31 +48,33 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
       closeConnection()
       send(msg)
 
-  def receive(): String =
+  @annotation.tailrec
+  final def receive(): String =
     retryConnectIfNoActiveConnection()
     try connectionOpt.get.read()
     catch case e: Throwable => 
       Terminal.showError(e, showStackTrace = isShowStackTrace)
       for c <- connectionOpt do try c.close() catch case e: Throwable => Terminal.showError(e)
       connectionOpt = None
-      receive()
+      if quit.isFalse then receive() else "Quitting..."
 
   def spawnReceiveLoop() = 
     Concurrent.Run:
-      Terminal.putRed("spawnReceiveLoop() started in new thread!")
-      Terminal.putGreen(s"Listening for messages until !stop in ${Thread.currentThread()}")
-      while isWatching.isTrue do
+      Terminal.putGreen(s"spawnReceiveLoop() started in new thread: ${Thread.currentThread()}")
+      while quit.isFalse do
         val msg: String = receive()
         val i = msg.indexOf("msg=")
-        if i < 1 then Terminal.putRed(msg) else
-          Terminal.putGreen(msg.substring(0, i - 1) + " sent this message:")
+        if i < 1 then Terminal.putYellow(msg) else
+          Terminal.putGreen(s"From ${msg.substring(0, i - 1)}:")
           Terminal.put(msg.substring(i + 4))
       end while
-      Terminal.putGreen("spawnReceiveLoop() thread done.")
+      Terminal.putGreen(s"spawnReceiveLoop() thread done: ${Thread.currentThread()}")
 
   def helpText = """
+    Type some text followed by <ENTER> to send a message to other connected clients.
     Type just <ENTER> to toggle watch mode.
-    Type some text <ENTER> to spam all connected clients with a message.
+    Type Ctrl+D to quit.
+    Type ? followed by <ENTER> for help.
   """
 
   def commandLoop(): Unit = 
@@ -82,6 +86,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
       
       val cmd = Terminal.get()
       if cmd == Terminal.CtrlD then continue = false 
+      else if cmd == "?" then Terminal.putYellow(helpText)
       else if cmd.isEmpty then 
         isWatching.toggle() 
         Terminal.putGreen(s"Toggled watch mode: isWatching=${isWatching.isTrue}")
@@ -89,7 +94,9 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
       else 
         send(cmd)
     end while
+    quit.setTrue()
     for c <- connectionOpt do c.close()
+    Terminal.putGreen(s"Goodbye $userId! snackomaten.Client terminates")
 
   def start(): Unit = 
     Terminal.putYellow(s"Connecting to snackomaten.Server host=$host port=$port")
