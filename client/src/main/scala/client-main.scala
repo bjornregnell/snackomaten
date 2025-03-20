@@ -2,6 +2,7 @@ package snackomaten
 
 @main def ClientMain(args: String*) = 
   Terminal.put("Welcome to the snackomaten terminal client! Ctrl+D to stop spamming ? for help")
+  
   Terminal.prompt("enter userid: ")
   val userIdProposal = Terminal.get()
   val userId: String = 

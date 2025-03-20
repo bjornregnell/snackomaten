@@ -3,13 +3,19 @@ package snackomaten
 object Concurrent:
 
   object ThreadSafe:
-
     class MutableFlag(init: Boolean = false):
       val underlying = java.util.concurrent.atomic.AtomicBoolean(init)
       def isTrue: Boolean = underlying.get()
       def isFalse: Boolean = !underlying.get()
       def setTrue(): Unit = underlying.set(true)
       def setFalse(): Unit = underlying.set(false)
+      def toggle(): Unit = 
+        var value = false
+        while {
+          value = underlying.get()
+          !underlying.weakCompareAndSet(value, !value)
+        } do ()
+
 
     class MutableNumber(init: Int = 0):
       val underlying = java.util.concurrent.atomic.AtomicInteger(init)
@@ -24,6 +30,8 @@ object Concurrent:
 
     class MutableKeyValueStore[K, V]():
       val underlying = java.util.concurrent.ConcurrentHashMap[K, V]()
+      import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
+      def toSeq: Seq[(K, V)] = underlying.asScala.toSeq
       def put(key: K, value: V): Unit = underlying.put(key, value)
       def get(key: K): Option[V] = Option(underlying.getOrDefault(key, null.asInstanceOf[V]))
       def isDefinedAt(key: K): Boolean = underlying.containsKey(key)

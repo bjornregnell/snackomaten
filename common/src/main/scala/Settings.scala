@@ -49,9 +49,16 @@ object Settings:
       for (k, v) <- configs do store.put(k, v)
       store
 
+    def overwriteConfigWithCurrent(): Unit =
+      Disk.saveLines(lines = currentConfig.toSeq.map((k,v) => s"$k=$v"), fileName = configFileName)
+
     def isDefinedAt(key: String): Boolean = currentConfig.isDefinedAt(key) && default.isDefinedAt(key)
 
     def getString(key: String): Option[String] = currentConfig.get(key).orElse(default.get(key))
+
+    def setString(key: String, value: String): Unit = 
+      currentConfig.put(key, value)
+      overwriteConfigWithCurrent()
 
     def getInt(key: String): Option[Int] = currentConfig.get(key).flatMap(_.toIntOption) match
       case None => 
@@ -59,10 +66,16 @@ object Settings:
         default.get(key).flatMap(_.toIntOption)
       case opt => opt
 
+    def setInt(key: String, value: Int): Unit = 
+      currentConfig.put(key, value.toString)
+      overwriteConfigWithCurrent()
+
   end UserConfig
 
-  def globalHost: String = UserConfig.getString("globalHost").getOrElse("localhost")
+  def globalHost: Option[String] = UserConfig.getString("globalHost")
+  
+  def globalPort: Option[Int] = UserConfig.getInt("globalPort")
 
-  def globalPort: Int = UserConfig.getInt("globalPort").getOrElse(0)
+  def userId: Option[String] = UserConfig.getString("userId")
 
 end Settings
