@@ -1,4 +1,4 @@
-lazy val snackomatenVersion = "0.2.0"
+lazy val snackomatenVersion = "0.3.0"
 
 lazy val osLibVer = "0.11.3" 
 
