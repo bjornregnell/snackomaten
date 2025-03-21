@@ -30,6 +30,8 @@ object Terminal:
 
   def putRed(s: String): Unit = putColor(s, RED)
 
+  def putBlue(s: String): Unit = putColor(s, BLUE)
+
   def putYellow(s: String): Unit = putColor(s, YELLOW)
 
   def alert(s: String) = putColor(s, RED_B);
