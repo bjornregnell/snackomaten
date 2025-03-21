@@ -36,7 +36,7 @@ class Server(val port: Int):
       while quit.isFalse do
         val msg = connection.read() 
         log(s"Received: '$msg'")
-        connection.write(s"[SERVER INFO] Snackomaten got your precious message.")
+        //connection.write(s"[SERVER INFO] Snackomaten got your precious message.")
         for c <- allConnections.asScala if c != connection do
           Terminal.putGreen(s"Broadcasting to other $c:") 
           Terminal.putYellow(msg)
