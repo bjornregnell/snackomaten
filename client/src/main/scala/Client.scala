@@ -12,6 +12,8 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
 
   @volatile private var connectionOpt: Option[Network.Connection] = None
 
+  val messageBuffer = Concurrent.ThreadSafe.MutableFirstInFirstOutQueue[Message]()
+
   def isActive = connectionOpt.isDefined && connectionOpt.get.isActive
 
   def closeConnection(): Unit = for c <- connectionOpt do 
@@ -53,44 +55,62 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
     retryConnectIfNoActiveConnection()
     try connectionOpt.get.read()
     catch case e: Throwable => 
-      Terminal.showError(e, showStackTrace = isShowStackTrace)
-      for c <- connectionOpt do try c.close() catch case e: Throwable => Terminal.showError(e)
+      Terminal.putYellow(e.getMessage()) //showError(e, showStackTrace = isShowStackTrace)
+      for c <- connectionOpt do try c.close() catch case e: Throwable => Terminal.putYellow(e.getMessage())
       connectionOpt = None
       if quit.isFalse then receive() else "Quitting..."
+
+  def showMessage(m: Message): Unit = 
+    if m.text.nonEmpty then
+      val userId = m.get("userId")
+      if userId.isEmpty then Terminal.putYellow(m.text) else
+        Terminal.putGreen(s"From ${userId.get}:")
+        m.get("msg").foreach(Terminal.put)
 
   def spawnReceiveLoop() = 
     Concurrent.Run:
       Terminal.putGreen(s"spawnReceiveLoop() started in new thread: ${Thread.currentThread()}")
       while quit.isFalse do
-        val msg: String = receive()
-        val i = msg.indexOf("msg=")
-        if i < 1 then Terminal.putYellow(msg) else
-          Terminal.putGreen(s"From ${msg.substring(0, i - 1)}:")
-          Terminal.put(msg.substring(i + 4))
+        val msg = Message(receive())
+        if isWatching.isTrue then
+          messageBuffer.removeAllToSeq().foreach(showMessage)
+          showMessage(msg)
+        else
+          messageBuffer.add(msg)
       end while
       Terminal.putGreen(s"spawnReceiveLoop() thread done: ${Thread.currentThread()}")
 
   def helpText = """
-    Type some text followed by <ENTER> to send a message to other connected clients.
-    Type just <ENTER> to toggle watch mode.
-    Type Ctrl+D to quit.
-    Type ? followed by <ENTER> for help.
+    Type some text followed by ENTER to send a message to other connected clients.
+    Type just ENTER to toggle watch mode.
+    Type ? followed by ENTER for help.
+    Ctrl+D to quit.
+    Ctrl+A to move to beginning of line.
+    Ctrl+E to move to end of line.
+    Ctrl+K to kill letters until end of line.
+    Ctrl+Y to yank killed letters.
+    Arrow Up/Down to navigate history.
+    !sometext to search for sometext in history
   """
 
   def commandLoop(): Unit = 
     var continue = true
     while continue do
-      val info = s"type command or message from $userId> "
+      def watchOnOff = if isWatching.isTrue then "Watch mode is ON" else "Watch mode is OFF" 
+      val info = s"$watchOnOff; type message from $userId> "
 
-      if isWatching.isTrue then Terminal.putBlue(info) else Terminal.putRed(info + " watch mode off, buffering messages")
+      if isWatching.isTrue then Terminal.putBlue(info) else Terminal.putRed(info)
       
       val cmd = Terminal.get()
       if cmd == Terminal.CtrlD then continue = false 
       else if cmd == "?" then Terminal.putYellow(helpText)
       else if cmd.isEmpty then 
         isWatching.toggle() 
-        Terminal.putGreen(s"Toggled watch mode: isWatching=${isWatching.isTrue}")
+        if isWatching.isTrue 
+        then Terminal.putGreen(s"$watchOnOff; incoming messages are printed even if you are typing.")
+        else Terminal.alert(s"$watchOnOff; all incoming messages are buffered in this terminal! Press enter to toggle watch mode.")
         Terminal.putYellow(helpText)
+        if isWatching.isTrue then messageBuffer.removeAllToSeq().foreach(showMessage)
       else 
         send(cmd)
     end while
@@ -103,6 +123,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
     retryConnectIfNoActiveConnection()
     Terminal.putGreen("Connected!")
     Terminal.putYellow(helpText)
+    Terminal.putGreen("You may want to start a another client in another terminal window with watch mode toggled off so you can type and send your messages without being interrupted by any incoming messages. Press ENTER to toggle watch mode.")
     spawnReceiveLoop()
     commandLoop()
   
