@@ -28,6 +28,23 @@ object Concurrent:
       def get(key: K): Option[V] = Option(underlying.getOrDefault(key, null.asInstanceOf[V]))
       def isDefinedAt(key: K): Boolean = underlying.containsKey(key)
 
+    class MutableFirstInFirstOutQueue[E]:
+      val underlying = java.util.concurrent.PriorityBlockingQueue[E]()
+      def add(elem: E): Unit = underlying.add(elem)
+      def removeOneOrWaitUntilAvailable(): E = underlying.take() 
+      def removeOneOpt(): Option[E] = Option(underlying.poll())
+      def removeAll(): Unit = underlying.clear()
+
+      /** Remove all elements and return them in a Seq[E] */
+      def removeAllToSeq(): Seq[E] = 
+        import scala.jdk.CollectionConverters.* 
+        val buf = java.util.ArrayList[E]() 
+        underlying.drainTo(buf) 
+        buf.asScala.toSeq 
+
+      def isEmpty: Boolean = underlying.size == 0
+    end MutableFirstInFirstOutQueue
+
   end ThreadSafe
 
   def Run(action: => Unit): Thread = Thread.startVirtualThread(() => action)
