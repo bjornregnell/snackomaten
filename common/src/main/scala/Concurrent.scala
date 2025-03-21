@@ -32,21 +32,21 @@ object Concurrent:
 
     class MutableKeyValueStore[K, V]():
       val underlying = java.util.concurrent.ConcurrentHashMap[K, V]()
-      import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
-      def toSeq: Seq[(K, V)] = underlying.asScala.toSeq
       def put(key: K, value: V): Unit = underlying.put(key, value)
       def get(key: K): Option[V] = Option(underlying.getOrDefault(key, null.asInstanceOf[V]))
       def isDefinedAt(key: K): Boolean = underlying.containsKey(key)
+      def toSeq: Seq[(K, V)] = 
+        import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
+        underlying.asScala.toSeq
 
     class MutableFirstInFirstOutQueue[E]:
       val underlying = java.util.concurrent.PriorityBlockingQueue[E]()
       def add(elem: E): Unit = underlying.add(elem)
-      def isEmpty: Boolean = underlying.size == 0
-
+      def nonEmpty: Boolean = underlying.size > 0
       def removeOneOrWaitUntilAvailable(): E = underlying.take() 
       def removeOneOpt(): Option[E] = Option(underlying.poll())
       def removeAll(): Unit = underlying.clear()
-
+      
       /** Remove all elements and return them in a Seq[E] */
       def removeAllToSeq(): Seq[E] = 
         import scala.jdk.CollectionConverters.* 
