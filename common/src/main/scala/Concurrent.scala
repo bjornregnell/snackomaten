@@ -9,13 +9,15 @@ object Concurrent:
       def isFalse: Boolean = !underlying.get()
       def setTrue(): Unit = underlying.set(true)
       def setFalse(): Unit = underlying.set(false)
+
       def toggle(): Unit = 
         var value = false
         while {
           value = underlying.get()
           !underlying.weakCompareAndSet(value, !value)
         } do ()
-
+    
+    end MutableFlag
 
     class MutableNumber(init: Int = 0):
       val underlying = java.util.concurrent.atomic.AtomicInteger(init)
@@ -39,6 +41,8 @@ object Concurrent:
     class MutableFirstInFirstOutQueue[E]:
       val underlying = java.util.concurrent.PriorityBlockingQueue[E]()
       def add(elem: E): Unit = underlying.add(elem)
+      def isEmpty: Boolean = underlying.size == 0
+
       def removeOneOrWaitUntilAvailable(): E = underlying.take() 
       def removeOneOpt(): Option[E] = Option(underlying.poll())
       def removeAll(): Unit = underlying.clear()
@@ -49,8 +53,7 @@ object Concurrent:
         val buf = java.util.ArrayList[E]() 
         underlying.drainTo(buf) 
         buf.asScala.toSeq 
-
-      def isEmpty: Boolean = underlying.size == 0
+      
     end MutableFirstInFirstOutQueue
 
   end ThreadSafe
