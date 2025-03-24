@@ -13,9 +13,9 @@ object Terminal:
     .build
     .asInstanceOf[jline.reader.impl.LineReaderImpl] //cast hack to expose set/getCompleter
 
-  def get(): String = util.Try(reader.readLine("", null: Character, "")).getOrElse(CtrlD)
+  def awaitInput(): String = util.Try(reader.readLine("", null: Character, "")).getOrElse(CtrlD)
 
-  def getSecret(prompt: String = "Enter secret: ", mask: Char = '*'): String = 
+  def awaitSecret(prompt: String = "Enter secret: ", mask: Char = '*'): String = 
     util.Try(reader.readLine(prompt, mask)).getOrElse(CtrlD)
 
   def prompt(s: String, color: String = BLUE) = print(s"$color$s$RESET")

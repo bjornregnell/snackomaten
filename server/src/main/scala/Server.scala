@@ -1,10 +1,12 @@
 package snackomaten 
 
+import java.io.IOException
+
 class Server(val port: Int):
-  val quit = Concurrent.ThreadSafe.MutableFlag()
+  val quit = Concurrent.ThreadSafe.AwaitTrueSignal()
 
   import scala.jdk.CollectionConverters.*
-  val allConnections = java.util.concurrent.ConcurrentLinkedQueue[Network.Connection]()
+  val allConnections = Concurrent.ThreadSafe.MutableList[Network.Connection]()
 
   def timestamp: String = java.util.Date().toString
 
@@ -17,39 +19,52 @@ class Server(val port: Int):
   def startMsg(): Unit = log(s"Server started, port: $port")
 
   def spawnAcceptLoop() = Concurrent.Run:
-    try
-      while quit.isFalse do
-        val connection = Network.Connection.toClient(from = serverPort)
-        log(s"New connection created: $connection")
-        allConnections.add(connection)
-        spawnReceiveLoop(connection)
-        log(s"Number of connections: ${allConnections.size()}")
-      end while
-    catch case e: Throwable =>
-      Terminal.showError(e)
-      Terminal.alert("FATAL ERROR. Accept Loop terminated.")
-      quit.setTrue()
-
+    while quit.isFalse do 
+      Network.Connection.awaitConnectClient(from = serverPort) match
+        case Left(error) => Terminal.putRed(s"Error in spawnAcceptLoop: $error")
+        case Right(connection) => 
+          log(s"New connection created: $connection")
+          spawnReceiveLoop(connection)
+          allConnections.append(connection)
+          log(s"Number of connections: ${allConnections.size}")
+    end while
+    Terminal.putGreen("spawnAcceptLoop is terminating now.")
 
   def spawnReceiveLoop(connection: Network.Connection) =  Concurrent.Run:
+    def cleanUp(): Unit = 
+      try
+        allConnections.deleteIfPresent(connection)
+        connection.close()
+        Terminal.putYellow(s"Receive loop will terminate: $connection")
+        log(s"Number of connections: ${allConnections.size}")
+      catch case e: Throwable => Terminal.putRed(s"Error in spawnReceiveLoop cleanUp: $e")
+
     try
-      while quit.isFalse do
-        val msg = connection.read() 
-        log(s"Received: '$msg'")
-        //connection.write(s"[SERVER INFO] Snackomaten got your precious message.")
-        for c <- allConnections.asScala if c != connection do
-          Terminal.putGreen(s"Broadcasting to other $c:") 
-          Terminal.putYellow(msg)
-          c.write(msg)
+      while quit.isFalse && connection.isActive do
+        connection.awaitInput() match
+          case Network.Error(error) => 
+            error match
+              case _: java.io.EOFException => Terminal.putYellow("EOF in connection.read()")
+              case _ => Terminal.showError(error)
+            end match
+            cleanUp()
+
+          case msg: String =>
+            log(s"Received: '$msg'")
+            //connection.write(s"[SERVER INFO] Snackomaten got your precious message.")
+            for c <- allConnections do if c != connection then
+              Terminal.putGreen(s"Broadcasting to other $c:") 
+              Terminal.putYellow(msg)
+              c.write(msg)
       end while
-    catch case e: Throwable =>
-      Terminal.showError(e)
-      Terminal.putRed(s"Connection lost: $connection \nReceive Loop terminated.")
-      allConnections.remove(connection)
-      log(s"Number of connections: ${allConnections.size()}")
+    catch case e: Throwable => 
+      Terminal.putRed(s"Unexpected error in spawnReceiveLoop: $e")
+      cleanUp()
+    end try
+  end spawnReceiveLoop
 
   def start(): Unit = 
-    log(s"Server starting at: $serverPort")
+    log(s"Server starting at: $serverPort") 
     spawnAcceptLoop()
-    while quit.isFalse do ()
-    Terminal.put("Server terminates. Goodbye!")
+    quit.waitUntilTrue() 
+    log("Server terminates. Goodbye!")
