@@ -63,8 +63,8 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
 
   def showMessage(m: Message): Unit = 
     if m.text.nonEmpty then
-      if m.isValid then 
-        Terminal.putGreen(s"From userId=${m.userId.get}: cmd=${m.cmd.get}")
+      if m.isValid && m.cmd.get == Message.Cmd.Send then 
+        Terminal.putGreen(s"From user ${m.userId.get} at ${m.time.map(_.toDate).getOrElse("")}")
         Terminal.put(m.body.get)
       else Terminal.putYellow(m.text)
     else ()
