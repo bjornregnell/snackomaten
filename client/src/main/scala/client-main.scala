@@ -2,6 +2,7 @@ package snackomaten
 
 @main def ClientMain(args: String*) = 
   Terminal.put("Welcome to the snackomaten terminal client! Ctrl+D to stop spamming ? for help")
+  Config.checkJavaVersionOrAbort(minVersion = 21)
 
   val uidMaxLength = 25
   
