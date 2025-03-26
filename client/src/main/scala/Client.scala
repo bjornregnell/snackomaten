@@ -82,8 +82,8 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
             case Network.Failed(e) => 
               Terminal.putYellow(s"spawnReceiveLoop Network.Error: $e")
               closeConnection()
-            case s: String =>
-              val msg = Message(s)
+            case input: String =>
+              val msg = Message(input)
               if isWatching.isTrue then
                 messageBuffer.foreach(showMessage)
                 showMessage(msg)
