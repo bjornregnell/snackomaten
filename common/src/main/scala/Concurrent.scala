@@ -60,7 +60,7 @@ object Concurrent:
     def foreach(f: E => Unit): Unit = underlying.forEach(e => f(e))
   end MutableFifoSeq
 
-  /** A sequence where out gives elements of type E in priority order, 
+  /** A weakly ordered sequence where out gives elements of type E in priority order, 
    * but iterator and forEach has tail in no particular order. 
    * 
    * By requiring E to be a subtype of Comparable we avoid runtime ClassCastException, 
