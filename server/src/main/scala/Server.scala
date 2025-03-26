@@ -3,10 +3,10 @@ package snackomaten
 import java.io.IOException
 
 class Server(val port: Int):
-  val quit = Concurrent.ThreadSafe.MutableLatch()
+  val quit = Concurrent.MutableLatch()
 
   import scala.jdk.CollectionConverters.*
-  val allConnections = Concurrent.ThreadSafe.MutableFifoSeq[Network.Connection]()
+  val allConnections = Concurrent.MutableFifoSeq[Network.Connection]()
 
   def timestamp: String = java.util.Date().toString
 
@@ -42,7 +42,7 @@ class Server(val port: Int):
     try
       while quit.isFalse && connection.isActive do
         connection.awaitInput() match
-          case Network.Error(error) => 
+          case Network.Failed(error) => 
             error match
               case _: java.io.EOFException => Terminal.putYellow("EOF in connection.read()")
               case _ => Terminal.showError(error)

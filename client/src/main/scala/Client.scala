@@ -5,15 +5,15 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
   def retryBackoffMillis(): Int = 2000 + util.Random().nextInt(5000)
   val MaxRetryMillis = 100_000
 
-  val isWatching = Concurrent.ThreadSafe.MutableFlag(true)
+  val isWatching = Concurrent.MutableFlag(true)
 
-  val quit = Concurrent.ThreadSafe.MutableFlag(false)
+  val quit = Concurrent.MutableFlag(false)
 
   val isShowStackTrace = false
 
   @volatile private var connectionOpt: Option[Network.Connection] = None
 
-  val messageBuffer = Concurrent.ThreadSafe.MutableFifoSeq[Message]()
+  val messageBuffer = Concurrent.MutableFifoSeq[Message]()
 
   def isActive = connectionOpt.isDefined && connectionOpt.get.isActive
 
@@ -79,7 +79,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
           case None => ()
           case Some(connection) => 
             connection.awaitInput() match
-            case Network.Error(e) => 
+            case Network.Failed(e) => 
               Terminal.putYellow(s"spawnReceiveLoop Network.Error: $e")
               closeConnection()
             case s: String =>
