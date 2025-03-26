@@ -7,9 +7,6 @@ object Network:
 
   case class Failed(error: Throwable)
 
-  def streamsFromSocket(s: Socket): (DataInputStream, DataOutputStream) =
-    DataInputStream(BufferedInputStream(s.getInputStream)) -> DataOutputStream(BufferedOutputStream(s.getOutputStream))
-
   def writeAndFlush(dos: DataOutputStream, msg: String): Unit = 
     dos.writeUTF(msg)
     dos.flush()
@@ -19,7 +16,8 @@ object Network:
   
   def openServerPort(port: Int): ServerPort = ServerPort(ServerSocket(port))
 
-  class Connection(val sock: Socket, val dis: DataInputStream, val dos: DataOutputStream):
+  case class Connection(val sock: Socket):
+    val (dis, dos) = Connection.streamsFromSocket(sock)
     def awaitInput(): String | Failed = try dis.readUTF catch case e: Throwable => Failed(e) 
     def port: Int = sock.getPort()
     def isActive: Boolean = sock.isBound && !sock.isClosed && sock.isConnected && !sock.isInputShutdown && !sock.isOutputShutdown
@@ -32,24 +30,23 @@ object Network:
     override def toString: String = s"Connection($sock)"
   
   object Connection:
-    def fromSocket(socket: Socket): Connection = 
-      val (dis, dos) = streamsFromSocket(socket)
-      Connection(socket, dis, dos)
+    def streamsFromSocket(s: Socket): (DataInputStream, DataOutputStream) =
+      DataInputStream(BufferedInputStream(s.getInputStream)) -> DataOutputStream(BufferedOutputStream(s.getOutputStream))
 
-    def awaitConnectClient(from: ServerPort): Either[Throwable, Connection] = 
+    def awaitConnectClient(from: ServerPort): Connection | Failed = 
       try
         val sock = from.serverSocket.accept()  // blocks until connection is made
         sock.setKeepAlive(true)
-        Right(fromSocket(sock))
-      catch case e: Throwable => Left(e)
+        Connection(sock)
+      catch case e: Throwable => Failed(e)
 
 
-    def connectToServer(host: String, port: Int): Either[Throwable, Connection] = 
+    def connectToServer(host: String, port: Int): Connection | Failed = 
       try 
         val sock = Socket(host, port)
         sock.setKeepAlive(true)
-        Right(fromSocket(sock))
-      catch case e: Throwable => Left(e)
+        Connection(sock)
+      catch case e: Throwable => Failed(e)
   
   end Connection
 

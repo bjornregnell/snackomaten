@@ -32,10 +32,10 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
         if connectionOpt.isEmpty then
           connectionOpt = 
             Network.Connection.connectToServer(host, port) match
-              case Right(connection) => 
-                Terminal.putGreen("Connected!")
-                Some(connection)
-              case Left(error) => 
+              case c@Network.Connection(sock)  => 
+                Terminal.putGreen(s"Connected via $sock!")
+                Some(c) 
+              case Network.Failed(error) => 
                 Terminal.showError(error, showStackTrace = isShowStackTrace)
                 Terminal.alert("  Server seems currently unavailable :(  ")
                 connectionOpt = None

@@ -21,8 +21,8 @@ class Server(val port: Int):
   def spawnAcceptLoop() = Concurrent.Run:
     while quit.isFalse do 
       Network.Connection.awaitConnectClient(from = serverPort) match
-        case Left(error) => Terminal.putRed(s"Error in spawnAcceptLoop: $error")
-        case Right(connection) => 
+        case Network.Failed(error) => Terminal.putRed(s"Error in spawnAcceptLoop: $error")
+        case connection: Network.Connection => 
           log(s"New connection created: $connection")
           spawnReceiveLoop(connection)
           allConnections.put(connection)

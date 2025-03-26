@@ -23,10 +23,10 @@ case class Message(text: String):
 
 object Message:
   enum Key(val keyString: String):
-    case UserId      extends Key("u")
-    case Command     extends Key("c")
-    case Time        extends Key("t")
-    case Body        extends Key("b")
+    case UserId      extends Key("uid")
+    case Command     extends Key("cmd")
+    case Time        extends Key("time")
+    case Body        extends Key("body")
     
     def apply(s: String): String = s"$keyString=$s"
 
