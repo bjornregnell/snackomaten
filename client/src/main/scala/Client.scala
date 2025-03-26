@@ -13,7 +13,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
 
   @volatile private var connectionOpt: Option[Network.Connection] = None
 
-  val messageBuffer = Concurrent.ThreadSafe.MutableList[Message]()
+  val messageBuffer = Concurrent.ThreadSafe.MutableFifoSeq[Message]()
 
   def isActive = connectionOpt.isDefined && connectionOpt.get.isActive
 
@@ -64,9 +64,10 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
   def showMessage(m: Message): Unit = 
     if m.text.nonEmpty then
       if m.isValid && m.cmd.get == Message.Cmd.Send then 
-        Terminal.putGreen(s"From user ${m.userId.get} at ${m.time.map(_.toDate).getOrElse("")}")
+        Terminal.putGreen(s"Received from userId ${Console.YELLOW}${m.userId.get}${Console.GREEN} at ${m.time.map(_.toDate).getOrElse("")}:")
         Terminal.put(m.body.get)
-      else Terminal.putYellow(m.text)
+      else 
+        Terminal.putYellow(s"Received unprocessed message type from Server:\n${m.text}")
     else ()
 
   def spawnReceiveLoop() = 
@@ -87,7 +88,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
                 messageBuffer.foreach(showMessage)
                 showMessage(msg)
               else
-                messageBuffer.append(msg)
+                messageBuffer.put(msg)
       end while
       Terminal.putGreen(s"spawnReceiveLoop() thread done: ${Thread.currentThread()}")
 

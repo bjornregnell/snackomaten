@@ -3,10 +3,10 @@ package snackomaten
 import java.io.IOException
 
 class Server(val port: Int):
-  val quit = Concurrent.ThreadSafe.AwaitTrueSignal()
+  val quit = Concurrent.ThreadSafe.MutableLatch()
 
   import scala.jdk.CollectionConverters.*
-  val allConnections = Concurrent.ThreadSafe.MutableList[Network.Connection]()
+  val allConnections = Concurrent.ThreadSafe.MutableFifoSeq[Network.Connection]()
 
   def timestamp: String = java.util.Date().toString
 
@@ -25,7 +25,7 @@ class Server(val port: Int):
         case Right(connection) => 
           log(s"New connection created: $connection")
           spawnReceiveLoop(connection)
-          allConnections.append(connection)
+          allConnections.put(connection)
           log(s"Number of connections: ${allConnections.size}")
     end while
     Terminal.putGreen("spawnAcceptLoop is terminating now.")

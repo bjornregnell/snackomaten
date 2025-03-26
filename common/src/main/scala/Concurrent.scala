@@ -1,5 +1,7 @@
 package snackomaten
 
+import java.util.concurrent.LinkedBlockingQueue
+
 /** Utilities for working with concurrency. */
 object Concurrent:
   /** Run `action` concurrently` in another virtual thread. Requires at least Java 21. */
@@ -37,30 +39,38 @@ object Concurrent:
         } do ()
     end MutableFlag
 
-    class AwaitTrueSignal():
-      val underlying = java.util.concurrent.CountDownLatch(1)
+    class MutableLatch():
+      val underlying = java.util.concurrent.CountDownLatch(1) 
       def waitUntilTrue(): Unit = underlying.await() 
       def isFalse: Boolean = underlying.getCount() > 0
       def setTrue(): Unit = underlying.countDown()
-    end AwaitTrueSignal
-
-    class MutableList[E]:
-      val underlying = java.util.concurrent.LinkedBlockingQueue[E]()
+    end MutableLatch
+    
+    /** A sequence ordered by first-in-first-out: if e1 is put before e2 then e1 is out before e2. */
+    class MutableFifoSeq[E]:
+      val underlying: java.util.concurrent.BlockingQueue[E] = java.util.concurrent.LinkedBlockingQueue[E]()
       def size: Int = underlying.size()
-      def append(elem: E): Unit = underlying.add(elem)
+      def put(elem: E): Unit = underlying.put(elem)
       def nonEmpty: Boolean = underlying.size > 0
       def deleteIfPresent(elem: E): Boolean = underlying.remove(elem)
       def deleteAll(): Unit = underlying.clear()
-      def outHeadOrWaitUntilAvailable(): E = underlying.take() 
-      def outHeadIfPresent(): Option[E] = Option(underlying.poll())
-      def outAllToSeq(): Seq[E] = 
+      def outOrAwaitAvailable(): E = underlying.take() 
+      def outOption(): Option[E] = Option(underlying.poll())
+      def outAll(): Seq[E] = 
         val buf = java.util.ArrayList[E]() 
         underlying.drainTo(buf) 
         buf.asScala.toSeq 
-      def toSeq: Seq[E] = underlying.asScala.toSeq 
       def iterator: Iterator[E] = underlying.asScala.iterator
       def foreach(f: E => Unit): Unit = underlying.forEach(e => f(e))
-    end MutableList
+    end MutableFifoSeq
+
+    /** A sequence where out gives elements of type E in priority order, but iterator and forEach has tail in no particular order. 
+     * 
+     * By requiring E to be a subtype of Comparable we can never get runtime ClassCastException as with 
+     * direct use of java.util.concurrent.PriorityBlockingQueue.
+    */
+    class MutablePrioritySeq[E <: Comparable[E]] extends MutableFifoSeq[E]:
+      override val underlying: java.util.concurrent.BlockingQueue[E] = java.util.concurrent.PriorityBlockingQueue[E]
       
     class MutableKeyValueStore[K, V]():
       val underlying = java.util.concurrent.ConcurrentHashMap[K, V]()
