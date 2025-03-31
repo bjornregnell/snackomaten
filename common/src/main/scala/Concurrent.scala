@@ -1,5 +1,7 @@
 package snackomaten
 
+import scala.jdk.CollectionConverters.*
+
 /** Utilities and data structures for working with concurrency. */
 object Concurrent:
   /** Run `action` concurrently` in another virtual thread. Requires at least Java 21. */
@@ -25,6 +27,7 @@ object Concurrent:
     def isFalse: Boolean = !underlying.get()
     def setTrue(): Unit = underlying.set(true)
     def setFalse(): Unit = underlying.set(false)
+
     def toggle(): Unit = 
       var value = false
       while {
@@ -42,7 +45,6 @@ object Concurrent:
   
   /** A sequence ordered by first-in-first-out: if e1 is put before e2 then e1 is out before e2. */
   class MutableFifoSeq[E]:
-    import scala.jdk.CollectionConverters.*
     val underlying: java.util.concurrent.BlockingQueue[E] = 
       java.util.concurrent.LinkedBlockingQueue[E]()
     def size: Int = underlying.size()
@@ -52,6 +54,7 @@ object Concurrent:
     def deleteAll(): Unit = underlying.clear()
     def outOrAwaitAvailable(): E = underlying.take() 
     def outOption(): Option[E] = Option(underlying.poll())
+
     def outAll(): Seq[E] = 
       val buf = java.util.ArrayList[E]() 
       underlying.drainTo(buf) 
@@ -59,6 +62,7 @@ object Concurrent:
     def iterator: Iterator[E] = underlying.asScala.iterator
     def foreach(f: E => Unit): Unit = underlying.forEach(e => f(e))
   end MutableFifoSeq
+
 
   /** A weakly ordered sequence where out gives elements of type E in priority order, 
    * but iterator and forEach has tail in no particular order. 
@@ -69,9 +73,35 @@ object Concurrent:
   class MutablePrioritySeq[E <: Comparable[E]] extends MutableFifoSeq[E]:
     override val underlying: java.util.concurrent.BlockingQueue[E] = 
       java.util.concurrent.PriorityBlockingQueue[E]()
-    
+  end MutablePrioritySeq
+
+  class MutableSortedSet[E <: Comparable[E]]:
+    val underlying = java.util.concurrent.ConcurrentSkipListSet[E]()
+    def size: Int = underlying.size()
+    def add(elem: E): Unit = underlying.add(elem)
+    def iterator: Iterator[E] = underlying.asScala.iterator
+    def subSeq(fromElement: E, untilElement: E): Seq[E] = underlying.subSet(fromElement, untilElement).iterator().asScala.toSeq
+    def headSeq(untilElement: E): Seq[E] = underlying.headSet(untilElement).iterator().asScala.toSeq
+    def tailSeq(fromElement: E): Seq[E] = underlying.tailSet(fromElement).iterator().asScala.toSeq
+    def higher(e: E): E = underlying.higher(e)
+    def headOption: Option[E] = Option(underlying.first())
+    def lastOption: Option[E] = Option(underlying.last())
+    def take(n: Int): Seq[E] = iterator.take(n).toSeq
+
+    def takeAfter(e: E, n: Int): Seq[E] = 
+      if n < 1 then Seq() else
+        var next = higher(e)
+        var i = 1
+        var xs = collection.mutable.ListBuffer.empty[E]
+        while next != null && i <= n do 
+          xs += next
+          next = higher(next)
+          i += 1
+        end while
+        xs.toSeq
+  end MutableSortedSet
+
   class MutableKeyValueStore[K, V]():
-    import scala.jdk.CollectionConverters.*
     val underlying = java.util.concurrent.ConcurrentHashMap[K, V]()
     def put(key: K, value: V): Unit = underlying.put(key, value)
     def get(key: K): Option[V] = Option(underlying.getOrDefault(key, null.asInstanceOf[V]))
