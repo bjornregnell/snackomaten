@@ -1,25 +1,39 @@
 package snackomaten 
 
-object Settings:
-  val default: Map[String, String] = Map(
-    "globalHost" -> "bjornix.cs.lth.se",
-    "globalPort" -> "8090",
-  ) 
-
-  def isValidKey(key: String): Boolean = 
-    key.trim.nonEmpty && key.forall(c => c.isLetter || c.isDigit || c == '_' || c == '.' || c == '/')
+object Config:
+  def globalHost: Option[String] = Store.getString("globalHost")
   
-  def isValidValue(value: String): Boolean = 
-    value.trim.nonEmpty && value.forall(c => c != '=' && c != '\n')
+  def globalPort: Option[Int] = Store.getInt("globalPort")
 
-  def badKeyValues(kvs: Map[String, String]): Seq[(String, String)] = kvs.filterNot((k, v) => isValidKey(k) && isValidValue(v)).toSeq
+  def userId: Option[String] = Store.getString("userId")
 
-  assert(badKeyValues(default).isEmpty, s"illegal chars Settings.default: ${badKeyValues(default)}")
+  def javaMajorVersion(): Option[Int] = 
+    Option(System.getProperty("java.version")).flatMap(_.takeWhile(_.isDigit).toIntOption)
 
-  object UserConfig:
+  def checkJavaVersionOrAbort(minVersion: Int): Unit =
+      for version <- javaMajorVersion() if version < minVersion do 
+        Terminal.alert(s"Snackomaten requires at least Java 21")
+        throw Error("Java upgrade needed.")
+
+  object Store:
     val configDir = Disk.userDir() + "/snackomaten"
 
     val configFileName = s"$configDir/config.txt"
+
+    val default: Map[String, String] = Map(
+      "globalHost" -> "bjornix.cs.lth.se",
+      "globalPort" -> "8090",
+    ) 
+
+    def isValidKey(key: String): Boolean = 
+      key.trim.nonEmpty && key.forall(c => c.isLetter || c.isDigit || c == '_' || c == '.' || c == '/')
+    
+    def isValidValue(value: String): Boolean = 
+      value.trim.nonEmpty && value.forall(c => c != '=' && c != '\n')
+
+    def badKeyValues(kvs: Map[String, String]): Seq[(String, String)] = kvs.filterNot((k, v) => isValidKey(k) && isValidValue(v)).toSeq
+
+    assert(badKeyValues(default).isEmpty, s"illegal chars Config.default: ${badKeyValues(default)}")
 
     def overwriteConfigWithDefault(): Unit =
       Disk.saveLines(lines = default.map((k,v) => s"$k=$v").toSeq, fileName = configFileName)
@@ -45,7 +59,7 @@ object Settings:
 
     private lazy val currentConfig = 
       val configs = loadConfigFromDiskOrCreate()
-      val store = Concurrent.ThreadSafe.MutableKeyValueStore[String, String]()
+      val store = Concurrent.MutableKeyValueStore[String, String]()
       for (k, v) <- configs do store.put(k, v)
       store
 
@@ -70,12 +84,6 @@ object Settings:
       currentConfig.put(key, value.toString)
       overwriteConfigWithCurrent()
 
-  end UserConfig
+  end Store
 
-  def globalHost: Option[String] = UserConfig.getString("globalHost")
-  
-  def globalPort: Option[Int] = UserConfig.getInt("globalPort")
-
-  def userId: Option[String] = UserConfig.getString("userId")
-
-end Settings
+end Config

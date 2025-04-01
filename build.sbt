@@ -1,4 +1,4 @@
-lazy val snackomatenVersion = "0.3.0"
+lazy val snackomatenVersion = "0.4.0"
 
 lazy val osLibVer = "0.11.3" 
 
@@ -17,21 +17,21 @@ run / connectInput := true
 
 Compile / doc / scalacOptions ++= Seq("-siteroot", "https://fileadmin.cs.lth.se/snackomaten/api")
 Compile / doc / target := file("target/api")
-Compile / doc / scalacOptions ++= Seq("-project", "snackomaten")
+Compile / doc / scalacOptions ++= Seq("-deprecation", "-project", "snackomaten")
 
 lazy val root = (project in file("."))
   .aggregate(common, client, server)
   .settings(
-     console / initialCommands := """import snackomaten.*""",
+    console / initialCommands := """import snackomaten.*""",
   )
   .dependsOn(common, client, server)
 
 lazy val common = (project in file("common"))
   .settings(
-     libraryDependencies += "com.lihaoyi" %% "os-lib" % osLibVer,
-     libraryDependencies += "org.jline" % "jline" % jlineVer,
-     console / initialCommands := """import snackomaten.*""",
-     // common settings
+    libraryDependencies += "com.lihaoyi" %% "os-lib" % osLibVer,
+    libraryDependencies += "org.jline" % "jline" % jlineVer,
+    console / initialCommands := """import snackomaten.*""",
+    scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
   )
 
 lazy val client = (project in file("client"))
