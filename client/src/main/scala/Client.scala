@@ -52,9 +52,9 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
   end awaitConnection
 
   def send(msg: String): Unit = 
-    val m = Message(userId = userId, cmd = Message.Cmd.Send, body = msg)
+    val m = Message(userId = userId, cmd = Message.Cmd.Send, body = msg).encode
     Terminal.putGreen(s"Sending '$msg' via $connectionOpt: isActive=$isActive")
-    try connectionOpt.get.write(m.text) 
+    try connectionOpt.get.write(m) 
     catch case e: Throwable => 
       Terminal.putRed(s"Error during send(): $e")
       closeConnection()
@@ -62,13 +62,11 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
       Terminal.putYellow("Try again later...")
 
   def showMessage(m: Message): Unit = 
-    if m.text.nonEmpty then
-      if m.isValid && m.cmd.get == Message.Cmd.Send then 
-        Terminal.putGreen(s"Received from userId ${Console.YELLOW}${m.userId.get}${Console.GREEN} at ${m.time.map(_.toDate).getOrElse("")}:")
-        Terminal.put(m.body.get)
+      if m.cmd == Message.Cmd.Send then 
+        Terminal.putGreen(s"Received from userId ${Console.YELLOW}${m.userId}${Console.GREEN} at ${m.time.toDate}:")
+        Terminal.put(m.body)
       else 
-        Terminal.putYellow(s"Received unprocessed message type from Server:\n${m.text}")
-    else ()
+        Terminal.putYellow(s"Received unknown message from Server:\n$m")
 
   def spawnReceiveLoop() = 
     Concurrent.Run:
@@ -83,12 +81,15 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
               Terminal.putYellow(s"spawnReceiveLoop Network.Error: $e")
               closeConnection()
             case input: String =>
-              val msg = Message(input)
-              if isWatching.isTrue then
-                messageBuffer.foreach(showMessage)
-                showMessage(msg)
-              else
-                messageBuffer.put(msg)
+              Message.decode(input) match
+                case Right(m) => 
+                  if isWatching.isTrue then
+                    messageBuffer.outAll().foreach(showMessage)
+                    showMessage(m)
+                  else
+                    messageBuffer.put(m) 
+                case Left(e) =>
+                  Terminal.putRed(s"spawnReceiveLoop $e")
       end while
       Terminal.putGreen(s"spawnReceiveLoop() thread done: ${Thread.currentThread()}")
 
