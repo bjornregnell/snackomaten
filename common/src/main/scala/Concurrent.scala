@@ -4,7 +4,7 @@ import scala.jdk.CollectionConverters.*
 
 /** Utilities and data structures for working with concurrency. */
 object Concurrent:
-  /** Run `action` concurrently` in another virtual thread. Requires at least Java 21. */
+  /** Run `action` concurrently in another virtual thread. Requires at least Java 21. */
   def Run(action: => Unit): Thread = Thread.startVirtualThread(() => action)
 
   class MutableNumber(init: Int = 0):
