@@ -2,10 +2,11 @@ package snackomaten
 
 case class Message(userId: String, cmd: Message.Cmd, time: Timestamp, body: String):
   def encode: String = 
-    Message.Key.UserId.withValue(userId) + ";" 
-      + Message.Key.Command.withValue(Message.Cmd.Send.toString) + ";" 
-      + Message.Key.Time.withValue(Timestamp.now().encode) + ";" 
-      + Message.Key.Body.withValue(body)
+    import Message.Key.*
+    UserId.withValue(userId) + ";" 
+    + Command.withValue(Message.Cmd.Send.toString) + ";" 
+    + Time.withValue(Timestamp.now().encode) + ";" 
+    + Body.withValue(body)
 
 object Message:
   def apply(userId: String, cmd: Cmd, body: String): Message = 
@@ -22,16 +23,13 @@ object Message:
       b <- raw.valueOf(Key.Body).toRight(DecodeError.InvalidBody)
     yield Message(u, c, t, b)
           
-  enum Key(val keyString: String):
-    case UserId      extends Key("uid")
-    case Command     extends Key("cmd")
-    case Time        extends Key("time")
-    case Body        extends Key("body")
-    
-    def withValue(s: String): String = s"$keyString=$s"
+  enum Key:
+    case UserId, Command, Time, Body
+    def keyString = this.toString
+    def withValue(value: String): String = s"$keyString=$value"
 
   enum Cmd:
-    case Ping, Login, Send, EchoOn, EchoOff 
+    case Ping, Login, Send 
 
   object Cmd:
     def fromString(s: String): Option[Cmd] = 
