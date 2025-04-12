@@ -6,6 +6,7 @@
 **/target
 **/metals.sbt
 project/project
+**/tmp
 
 *.class
 *.log
