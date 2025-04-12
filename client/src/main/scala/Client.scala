@@ -52,7 +52,7 @@ class Client(val userId: String, masterPassword: String, val host: String = "bjo
   end awaitConnection
 
   def send(msg: String): Unit = 
-    val m = Message(userId = userId, cmd = Message.Cmd.Send, body = msg).encode
+    val m = Message(userId = userId, cmd = Message.Cmd.Send, body = msg).encode()
     Terminal.putGreen(s"Sending '$msg' via $connectionOpt: isActive=$isActive")
     try connectionOpt.get.write(m) 
     catch case e: Throwable => 

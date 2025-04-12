@@ -1,12 +1,12 @@
 package snackomaten
 
 case class Message(userId: String, cmd: Message.Cmd, time: Timestamp, body: String):
-  def encode: String = 
+  def encode(pwd: String = "unsecurePassword"): String = 
     import Message.Key.*
     UserId.withValue(userId) + ";" 
     + Command.withValue(Message.Cmd.Send.toString) + ";" 
     + Time.withValue(Timestamp.now().encode) + ";" 
-    + Body.withValue(body)
+    + Body.withValue(Crypto.AES.encryptString(secret = body, password = pwd))
 
 object Message:
   def apply(userId: String, cmd: Cmd, body: String): Message = 
@@ -15,12 +15,14 @@ object Message:
   enum DecodeError:
     case InvalidUserId, InvalidCmd, InvalidTime, InvalidBody
 
-  def decode(raw: String): Either[DecodeError, Message] = 
+  def decode(raw: String, pwd: String = "unsecurePassword"): Either[DecodeError, Message] = 
     for
       u <- raw.valueOf(Key.UserId).toRight(DecodeError.InvalidUserId)
       c <- raw.valueOf(Key.Command).flatMap(Cmd.fromString).toRight(DecodeError.InvalidCmd)
       t <- raw.valueOf(Key.Time).flatMap(Timestamp.decode).toRight(DecodeError.InvalidTime)
-      b <- raw.valueOf(Key.Body).toRight(DecodeError.InvalidBody)
+      b <- raw.valueOf(Key.Body)
+            .flatMap(encrypted => Crypto.AES.decryptString(encrypted, pwd))
+            .toRight(DecodeError.InvalidBody)
     yield Message(u, c, t, b)
           
   enum Key:
