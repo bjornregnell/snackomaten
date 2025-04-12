@@ -4,9 +4,9 @@ package snackomaten
   Terminal.put("Welcome to the snackomaten terminal client! Ctrl+D to stop spamming ? for help")
   Config.checkJavaVersionOrAbort(minVersion = 21)
 
-  val uidMaxLength = 25
+  val uidMaxLength = 100
   
-  Terminal.prompt(s"enter user id: ")
+  Terminal.putGreen(s"enter user name: (use Firstname.Familyname)")
   val userIdProposal = Terminal.awaitInput()
   val userId: String = 
     if userIdProposal.isEmpty then java.util.UUID.randomUUID().toString.take(5)
