@@ -5,7 +5,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
   def retryBackoffMillis(): Int = 2000 + util.Random().nextInt(5000)
   val MaxRetryMillis = 100_000
 
-  val isWatching = Concurrent.MutableFlag(true)
+  val isBuffering = Concurrent.MutableFlag(false)
 
   val quit = Concurrent.MutableFlag(false)
 
@@ -83,7 +83,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
             case input: String =>
               Message.decode(input) match
                 case Right(m) => 
-                  if isWatching.isTrue then
+                  if isBuffering.isFalse then
                     messageBuffer.outAll().foreach(showMessage)
                     showMessage(m)
                   else
@@ -95,7 +95,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
 
   def helpText = """
     Type some text followed by ENTER to send a message to other connected clients.
-    Type just ENTER to toggle watch mode.
+    Type just ENTER to toggle buffering mode.
     Type ? followed by ENTER for help.
     Ctrl+D to quit.
     Ctrl+A to move to beginning of line.
@@ -109,21 +109,21 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
   def commandLoop(): Unit = 
     var continue = true
     while continue do
-      def watchOnOff = if isWatching.isTrue then "Watch mode is ON" else "Watch mode is OFF" 
-      val info = s"$watchOnOff; type message from $userId> "
+      def bufferingState = if isBuffering.isFalse then "Buffering is OFF" else "Buffering is ON" 
+      val info = s"$bufferingState; type message from $userId> "
 
-      if isWatching.isTrue then Terminal.putBlue(info) else Terminal.putRed(info)
+      if isBuffering.isFalse then Terminal.putGreen(info) else Terminal.putRed(info)
       
       val input = Terminal.awaitInput()
       if input == Terminal.CtrlD then continue = false 
       else if input == "?" then Terminal.putYellow(helpText)
       else if input.isEmpty then 
-        isWatching.toggle() 
-        if isWatching.isTrue 
-        then Terminal.putGreen(s"$watchOnOff; incoming messages are printed even if you are typing.")
-        else Terminal.alert(s"$watchOnOff; all incoming messages are buffered in this terminal! Press enter to toggle watch mode.")
+        isBuffering.toggle() 
+        if isBuffering.isFalse 
+        then Terminal.putGreen(s"$bufferingState; incoming messages are printed even if you are typing.")
+        else Terminal.alert(s"$bufferingState; all incoming messages are buffered in this terminal! Press enter to toggle buffering mode.")
         Terminal.putYellow(helpText)
-        if isWatching.isTrue then messageBuffer.foreach(showMessage)
+        if isBuffering.isFalse then messageBuffer.foreach(showMessage)
       else 
         send(input)
     end while
@@ -135,7 +135,7 @@ class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val por
     Terminal.putYellow(s"Connecting to snackomaten.Server host=$host port=$port")
     awaitConnection()
     Terminal.putYellow(helpText)
-    Terminal.putGreen("You may want to start a another client in another terminal window with watch mode toggled off so you can type and send your messages without being interrupted by any incoming messages. Press ENTER to toggle watch mode.")
+    Terminal.putGreen("You may want to start a another client in another terminal window with buffering mode toggled ON so you can type and send your messages without being interrupted by any incoming messages. Press ENTER to toggle buffering mode.")
     spawnReceiveLoop()
     commandLoop()
   
