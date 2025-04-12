@@ -30,6 +30,7 @@ lazy val common = (project in file("common"))
   .settings(
     libraryDependencies += "com.lihaoyi" %% "os-lib" % osLibVer,
     libraryDependencies += "org.jline" % "jline" % jlineVer,
+    libraryDependencies += "org.scalameta" %% "munit" % "1.0.4" % Test,
     console / initialCommands := """import snackomaten.*""",
     scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
   )
