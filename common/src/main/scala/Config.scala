@@ -1,11 +1,20 @@
 package snackomaten 
 
 object Config:
-  def globalHost: Option[String] = Store.getString("globalHost")
-  
-  def globalPort: Option[Int] = Store.getInt("globalPort")
+  val default: Map[String, String] = Map(
+      "globalHost" -> "bjornix.cs.lth.se",
+      "globalPort" -> "8090",
+    ) 
 
-  def userId: Option[String] = Store.getString("userId")
+  def isValidKey(key: String): Boolean = 
+    key.trim.nonEmpty && key.forall(c => c.isLetter || c.isDigit || c == '_' || c == '.' || c == '/')
+  
+  def isValidValue(value: String): Boolean = 
+    value.trim.nonEmpty && value.forall(c => c != '=' && c != '\n')
+
+  def badKeyValues(kvs: Map[String, String]): Seq[(String, String)] = kvs.filterNot((k, v) => isValidKey(k) && isValidValue(v)).toSeq
+
+  assert(badKeyValues(default).isEmpty, s"illegal chars Config.default: ${badKeyValues(default)}")
 
   def javaMajorVersion(): Option[Int] = 
     Option(System.getProperty("java.version")).flatMap(_.takeWhile(_.isDigit).toIntOption)
@@ -15,30 +24,22 @@ object Config:
         Terminal.alert(s"Snackomaten requires at least Java 21")
         throw Error("Java upgrade needed.")
 
+class Config(userName: String):
+  import Config.* 
+
+  def globalHost: Option[String] = Store.getString("globalHost")
+  
+  def globalPort: Option[Int] = Store.getInt("globalPort")
+
   object Store:
-    val configDir = Disk.userDir() + "/snackomaten"
+    val configDir = Disk.userDir() + s"/snackomaten/$userName"
 
     val configFileName = s"$configDir/config.txt"
 
-    val default: Map[String, String] = Map(
-      "globalHost" -> "bjornix.cs.lth.se",
-      "globalPort" -> "8090",
-    ) 
-
-    def isValidKey(key: String): Boolean = 
-      key.trim.nonEmpty && key.forall(c => c.isLetter || c.isDigit || c == '_' || c == '.' || c == '/')
-    
-    def isValidValue(value: String): Boolean = 
-      value.trim.nonEmpty && value.forall(c => c != '=' && c != '\n')
-
-    def badKeyValues(kvs: Map[String, String]): Seq[(String, String)] = kvs.filterNot((k, v) => isValidKey(k) && isValidValue(v)).toSeq
-
-    assert(badKeyValues(default).isEmpty, s"illegal chars Config.default: ${badKeyValues(default)}")
-
-    def overwriteConfigWithDefault(): Unit =
+    private def overwriteConfigWithDefault(): Unit =
       Disk.saveLines(lines = default.map((k,v) => s"$k=$v").toSeq, fileName = configFileName)
 
-    def loadConfigFromDiskOrCreate(): Seq[(String, String)] = 
+    private def loadConfigFromDiskOrCreate(): Seq[(String, String)] = 
       if !Disk.isExisting(configDir) then Disk.createDirIfNotExist(configDir)
       
       def splitKeyValue(s: String): Option[(String, String)] = 
@@ -63,14 +64,14 @@ object Config:
       for (k, v) <- configs do store.put(k, v)
       store
 
-    def overwriteConfigWithCurrent(): Unit =
+    private def overwriteConfigWithCurrent(): Unit =
       Disk.saveLines(lines = currentConfig.toSeq.map((k,v) => s"$k=$v"), fileName = configFileName)
 
     def isDefinedAt(key: String): Boolean = currentConfig.isDefinedAt(key) && default.isDefinedAt(key)
 
     def getString(key: String): Option[String] = currentConfig.get(key).orElse(default.get(key))
 
-    def setString(key: String, value: String): Unit = 
+    def setString(key: String, value: String): Unit = synchronized:
       currentConfig.put(key, value)
       overwriteConfigWithCurrent()
 
@@ -80,7 +81,7 @@ object Config:
         default.get(key).flatMap(_.toIntOption)
       case opt => opt
 
-    def setInt(key: String, value: Int): Unit = 
+    def setInt(key: String, value: Int): Unit = synchronized:
       currentConfig.put(key, value.toString)
       overwriteConfigWithCurrent()
 
