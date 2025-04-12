@@ -16,12 +16,16 @@ package snackomaten
     val input = if !isSecret then Terminal.awaitInput() else Terminal.awaitSecret()
     input.filter(_ > ' ').filterNot(_ == '=').filterNot(_ == ';').take(maxLength)
   
+  def getUserName(): String =
+    val input = read("Enter user name:")
+    if input.isEmpty then generateUserName() else input
+  
   val client = 
     Client(
       masterPassword = args.lift(0).getOrElse(read("Enter password:", isSecret = true)),
       host = args.lift(1).getOrElse("bjornix.cs.lth.se"),
       port = args.lift(2).flatMap(_.toIntOption).getOrElse(8090),
-      userId = args.lift(3).getOrElse(generateUserName()),
+      userId = args.lift(3).getOrElse(getUserName()),
     )
 
   client.start()
