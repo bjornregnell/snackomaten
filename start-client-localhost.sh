@@ -1,0 +1,1 @@
+java -jar client/target/scala-3.6.4/snackomatenClient-assembly-0.4.0.jar $(keyring get snackomaten client) localhost 8090 testUser
