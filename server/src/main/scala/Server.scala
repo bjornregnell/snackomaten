@@ -2,7 +2,7 @@ package snackomaten
 
 import java.io.IOException
 
-class Server(val port: Int):
+class Server(val port: Int, masterPassword: String):
   val quit = Concurrent.MutableLatch()
 
   import scala.jdk.CollectionConverters.*

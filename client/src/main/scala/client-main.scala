@@ -4,18 +4,24 @@ package snackomaten
   Terminal.put("Welcome to the snackomaten terminal client! Ctrl+D to stop spamming ? for help")
   Config.checkJavaVersionOrAbort(minVersion = 21)
 
-  val uidMaxLength = 100
+  if args.contains("-h") then 
+    Terminal.putYellow("Help: give zero or more arguments in this order: masterpassword host port userName")
+    sys.exit(0)
+  end if
   
-  Terminal.putGreen(s"enter user name: (use Firstname.Familyname)")
-  val userIdProposal = Terminal.awaitInput()
-  val userId: String = 
-    if userIdProposal.isEmpty then java.util.UUID.randomUUID().toString.take(5)
-    else userIdProposal.filter(_ > ' ').filterNot(_ == '=').filterNot(_ == ';').take(uidMaxLength)
-  Terminal.putGreen(s"Your userid is $userId") 
-
+  def generateUserName() = java.util.UUID.randomUUID().toString.take(7)
+    
+  def read(what: String, maxLength: Int = 100, isSecret: Boolean = false) = 
+    Terminal.putGreen(what)
+    val input = if !isSecret then Terminal.awaitInput() else Terminal.awaitSecret()
+    input.filter(_ > ' ').filterNot(_ == '=').filterNot(_ == ';').take(maxLength)
+  
   val client = 
-    if args.length == 1 then Client(userId, host = args(0))
-    else if args.length == 2 && args(1).toIntOption.isDefined then Client(userId, host = args(0), port = args(1).toInt) 
-    else Client(userId)
+    Client(
+      masterPassword = args.lift(0).getOrElse(read("Enter password:", isSecret = true)),
+      host = args.lift(1).getOrElse("bjornix.cs.lth.se"),
+      port = args.lift(2).flatMap(_.toIntOption).getOrElse(8090),
+      userId = args.lift(3).getOrElse(generateUserName()),
+    )
 
   client.start()

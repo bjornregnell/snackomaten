@@ -1,6 +1,6 @@
 package snackomaten 
 
-class Client(val userId: String, val host: String = "bjornix.cs.lth.se", val port: Int = 8090):
+class Client(val userId: String, masterPassword: String, val host: String = "bjornix.cs.lth.se", val port: Int = 8090):
 
   def retryBackoffMillis(): Int = 2000 + util.Random().nextInt(5000)
   val MaxRetryMillis = 100_000
