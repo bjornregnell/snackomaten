@@ -41,7 +41,9 @@ class Server(val port: Int, masterPassword: String):
 
     try
       while quit.isFalse && connection.isActive do
-        connection.awaitInput() match
+        val input = connection.awaitInput() 
+        val t0 = System.currentTimeMillis()
+        input match
           case Network.Failed(error) => 
             error match
               case _: java.io.EOFException => Terminal.putYellow("EOF in connection.read()")
@@ -50,12 +52,17 @@ class Server(val port: Int, masterPassword: String):
             cleanUp()
 
           case msg: String =>
-            log(s"Received: '$msg'")
+            log(s"Received raw message: '$msg'")
             //connection.write(s"[SERVER INFO] Snackomaten got your precious message.")
             for c <- allConnections do if c != connection then
               Terminal.putGreen(s"Broadcasting to other $c:") 
               Terminal.putYellow(msg)
               c.write(msg)
+        end match
+        val elapsed = System.currentTimeMillis() - t0
+        val backoff = elapsed * allConnections.size
+        log(s"Processing took $elapsed ms, virtual thread will sleep for $backoff ms to allow other threads to work")
+        Thread.sleep(backoff)
       end while
     catch case e: Throwable => 
       Terminal.putRed(s"Unexpected error in spawnReceiveLoop: $e")
