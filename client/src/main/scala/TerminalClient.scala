@@ -7,7 +7,7 @@ object TerminalClient:
 
     if args.contains("-h") || args.contains("--help") || args.contains("-v") || args.contains("--version") then 
       Terminal.put(s"Welcome to snackomaten version ???")
-      Terminal.putYellow("use no or optional args: --password mypassword --host localhost --port 8090 --user MyUserName")
+      Terminal.putYellow("optional args: --password mypassword --host localhost --port 8090 --user MyUserName")
       sys.exit(0)
     end if
 
@@ -74,7 +74,7 @@ object TerminalClient:
       end if
       input
 
-    if hashOpt.isEmpty then hashOpt = Some(to.SHA.hash(mpw))
+    if hashOpt.isEmpty then hashOpt = Some(Crypto.SHA.hash(mpw))
 
     if config.passwordHashOpt.nonEmpty && hashOpt.nonEmpty && hashOpt.get != config.passwordHashOpt.get then
       Terminal.putRed("Bad password! Entered password hash does not match stored hash.")
