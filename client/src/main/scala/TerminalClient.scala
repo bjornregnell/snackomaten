@@ -74,7 +74,7 @@ class TerminalClient(
 
   def showMessage(m: Message): Unit = 
       if m.cmd == Message.Cmd.Send then 
-        Terminal.putGreen(s"Received from ${Console.YELLOW}${m.userId}${Console.GREEN} at ${m.time.toDate}:")
+        Terminal.putGreen(s"From ${Console.YELLOW}${Message.AtUserTag}${m.userId}${Console.GREEN} ${m.time.toDate}:")
         Terminal.put(m.body)
       else 
         Terminal.putYellow(s"Received unknown message from Server:\n$m")

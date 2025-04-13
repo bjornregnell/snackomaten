@@ -26,7 +26,8 @@ object Message:
 
   val FieldSep = ';'
   val KeyValueSep = '='
-  val illegalFieldChars = Set(Message.KeyValueSep, Message.FieldSep)
+  val IllegalFieldChars = Set(Message.KeyValueSep, Message.FieldSep)
+  val AtUserTag = '@'
 
   enum DecodeError:
     case InvalidMessage
