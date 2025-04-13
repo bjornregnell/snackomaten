@@ -51,27 +51,25 @@ package snackomaten
   Disk.createDirIfNotExist(config.Store.configDir)
 
   Terminal.putYellow(s"Users with config in ${Config.configBaseDir}: ${Config.userDirsInConfigDir().mkString(",")}")
+  
+  var hashOpt: Option[String] = None
 
   val mpw = arg("password").getOrElse:
     val input = readUntilValid(s"Enter password for $userName:", "must be non-empty!", isSecret = true)(_.nonEmpty)
-    val hash = Crypto.SHA.hash(input)
-    println(s"DEBUG 1: hash=$hash")
-    println(s"DEBUG 2: config.passwordHashOpt=${config.passwordHashOpt}")
-    println(s"DEBUG 3: config.currentConfig=${config.Store.currentConfig.toSeq}")
-
+    val hashOpt = Some(Crypto.SHA.hash(input))
     if config.passwordHashOpt.isEmpty then 
-      config.setPasswordHash(hash)
-      println(s"DEBUG 4: config.currentConfig=${config.Store.currentConfig.toSeq}")
-      Terminal.put("Do you want to see your password so you can copy paste it to a password manager? (Y/n)")
-      if Terminal.awaitInput().toLowerCase.startsWith("y") then Terminal.put(input)
-    else 
-      println(s"DEBUG: config.currentConfig=${config.Store.currentConfig.toSeq}")
-      if hash != config.passwordHashOpt.get then
-        Terminal.putRed("Bad password!")
-        sys.exit(1)
-      else Terminal.putGreen("Password OK!")
+      config.setPasswordHash(hashOpt.get)
+      Terminal.put("Show password so you can copy paste it to a password manager? (Y/n)")
+      if Terminal.awaitInput().toLowerCase.startsWith("y") then 
+        Terminal.putYellow("You typed this password:")
+        Terminal.put(input)
     end if
-    input  
+    input
+
+  if config.passwordHashOpt.nonEmpty && hashOpt.nonEmpty && hashOpt.get != config.passwordHashOpt.get then
+    Terminal.putRed("Bad password! Entered password hash does not match stored hash.")
+    sys.exit(1)
+  else Terminal.putGreen("Password OK!")
 
   val host = arg("host").getOrElse(config.globalHost)
   val port = arg("port").flatMap(_.toIntOption).getOrElse(config.globalPort)

@@ -8,6 +8,7 @@ object Terminal:
   export Console.*
 
   val terminal = jline.terminal.TerminalBuilder.terminal
+
   val reader = jline.reader.LineReaderBuilder.builder
     .terminal(terminal)
     .build
@@ -30,6 +31,8 @@ object Terminal:
   def putRed(s: String): Unit = putColor(s, RED)
 
   def putBlue(s: String): Unit = putColor(s, BLUE)
+
+  def putCyan(s: String): Unit = putColor(s, CYAN)
 
   def putYellow(s: String): Unit = putColor(s, YELLOW)
 

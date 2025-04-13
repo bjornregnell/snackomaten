@@ -83,9 +83,13 @@ class Client(
           case None => ()
           case Some(connection) => 
             connection.awaitInput() match
-            case Network.Failed(e) => 
-              Terminal.putYellow(s"spawnReceiveLoop Network.Error: $e")
-              closeConnection()
+            case Network.Failed(e) => e match
+              case se: java.net.SocketException if se.getMessage() == "Socket closed" => 
+                Terminal.putYellow("spawnReceiveLoop Socket closed")
+                closeConnection()
+              case _ => 
+                Terminal.putYellow(s"spawnReceiveLoop Network.Error: $e")
+                closeConnection()
             case input: String =>
               Message.decode(input) match
                 case Right(m) => 
@@ -94,8 +98,7 @@ class Client(
                     showMessage(m)
                   else
                     messageBuffer.put(m) 
-                case Left(e) =>
-                  Terminal.putRed(s"spawnReceiveLoop $e")
+                case Left(e) => Terminal.putRed(s"spawnReceiveLoop $e")
       end while
       Terminal.putGreen(s"spawnReceiveLoop() thread done: ${Thread.currentThread()}")
 
@@ -117,20 +120,25 @@ class Client(
     var continue = true
     while continue do
       def bufferingState = if isBuffering.isFalse then "buf=OFF" else s"buf=ON, ${messageBuffer.size} in buf" 
-      val info = s"$bufferingState | Type /help or message from $userId> "
+      val info = s"$bufferingState. Type /help or message from $userId> "
 
-      if isBuffering.isFalse then Terminal.putGreen(info) else Terminal.putRed(info)
-      
+      //if isBuffering.isFalse then Terminal.putGreen(info) else Terminal.putCyan(info)
+      Terminal.putCyan(info)
+
       val input = Terminal.awaitInput()
       if input == Terminal.CtrlD then continue = false 
       else if input == "/help" then Terminal.putYellow(helpText)
       else if input.isEmpty then 
         isBuffering.toggle() 
-        if isBuffering.isFalse 
-        then Terminal.putGreen(s"$bufferingState; incoming messages are printed even if you are typing.")
-        else Terminal.alert(s"$bufferingState; all incoming messages are buffered in this terminal! Press enter to toggle buffering mode.")
-        Terminal.putYellow(helpText)
-        if isBuffering.isFalse then messageBuffer.foreach(showMessage)
+        if isBuffering.isFalse then 
+          Terminal.putGreen(s"$bufferingState; incoming messages are interleaved with your typing.")
+        else
+          Terminal.alert(s"Incoming messages are buffered!")
+          Terminal.putYellow("Press enter again to toggle buffering OFF.")
+        end if
+        if isBuffering.isFalse && messageBuffer.size > 0 then 
+          Terminal.alert(s"Draining ${messageBuffer.size} messages from buffer:")
+          messageBuffer.outAll().foreach(showMessage)
       else 
         send(input)
     end while
