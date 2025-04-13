@@ -74,6 +74,6 @@ package snackomaten
   val host = arg("host").getOrElse(config.globalHost)
   val port = arg("port").flatMap(_.toIntOption).getOrElse(config.globalPort)
 
-  val client = Client(config = config, masterPassword = mpw, host = host, port = port, userId = userName)
+  val client = TerminalClient(config = config, masterPassword = mpw, host = host, port = port, userId = userName)
 
   client.start()

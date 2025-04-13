@@ -1,13 +1,15 @@
 package snackomaten 
 
-class Client(
+class TerminalClient(
   val config: Config, 
   val userId: String, 
   val masterPassword: String, 
   val host: String = "bjornix.cs.lth.se", 
   val port: Int = 8090
 ):
-  def retryBackoffMillis(): Int = 2000 + util.Random().nextInt(5000)
+  /** Gives a random number of millis between from and from + span. */
+  def retryBackoffMillis(from: Int = 2000, span: Int = 5000): Int = 
+    from + util.Random().nextInt(span)
 
   val MaxRetryMillis = 100_000
 
@@ -21,13 +23,16 @@ class Client(
 
   val messageBuffer = Concurrent.MutableFifoSeq[Message]()
 
-  def isActive = connectionOpt.isDefined && connectionOpt.get.isActive
+  /** Check if the connection to the server is alive. */
+  def isActive: Boolean = connectionOpt.isDefined && connectionOpt.get.isActive
 
+  /** Close connection to the server if alive or else do nothing. */
   def closeConnection(): Unit = for c <- connectionOpt do 
     Terminal.putYellow(s"Closing ${if !isActive then "inactive " else ""}connection $c")
     c.close()
     connectionOpt = None
 
+  /** Await connection to server. The waiting time before next retry is increased by `retryBackoffMillis()` */
   final def awaitConnection(): Unit = 
     synchronized:  // to prevent concurrent connection attempts from other threads
       var retryReconnectAfterMillis = retryBackoffMillis()
@@ -74,6 +79,7 @@ class Client(
       else 
         Terminal.putYellow(s"Received unknown message from Server:\n$m")
 
+  /** A new thread that awaits incoming messages from the server and either show them directly or buffers them. */
   def spawnReceiveLoop() = 
     Concurrent.Run:
       Terminal.putGreen(s"spawnReceiveLoop() started in new thread: ${Thread.currentThread()}")
@@ -114,7 +120,8 @@ class Client(
     Arrow Up/Down to navigate history.
     !sometext to search for sometext in history
   """
-
+  
+  /** Awaits terminal input from user and acts on commands or sends messages. */
   def commandLoop(): Unit = 
     Thread.sleep(500) // to wait a bit to allow receive loop sto start
     var continue = true
@@ -145,7 +152,8 @@ class Client(
     quit.setTrue()
     closeConnection()
     Terminal.putGreen(s"Goodbye $userId! snackomaten.Client terminates")
-
+  
+  /** Starts this client. Awaits connection to server before `spawnReceiveLoop()` and `commandLoop()`. */
   def start(): Unit = 
     Terminal.putYellow(s"Connecting to snackomaten.Server host=$host port=$port")
     awaitConnection()
@@ -154,4 +162,4 @@ class Client(
     spawnReceiveLoop()
     commandLoop()
   
-end Client
+end TerminalClient
