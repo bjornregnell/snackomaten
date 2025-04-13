@@ -2,12 +2,13 @@ package snackomaten
 
 case class Message(userId: String, cmd: Message.Cmd, time: Timestamp, body: String):
   def encode(secretOpt: Option[String] = Some("unsecurePassword")): String = 
-    import Message.Key.*
+    import Message.Key.*, Message.FieldSep
     val msg = java.lang.StringBuilder()
-      .append(UserId.withValue(userId)).append(';')
-      .append(Command.withValue(Message.Cmd.Send.toString)).append(';')
-      .append(Time.withValue(Timestamp.now().encode)).append(';')
-      .append(Body.withValue(body)).append(';')
+      .append(UserId.withValue(userId))                    .append(FieldSep)
+      .append(Command.withValue(Message.Cmd.Send.toString)).append(FieldSep)
+      .append(Time.withValue(Timestamp.now().encode))      .append(FieldSep)
+      .append(Body.withValue(body))
+
     val et = Message.isEncryptedTag(secretOpt.isDefined)
     if secretOpt.isEmpty 
     then msg.insert(0, et).toString 
@@ -19,47 +20,69 @@ object Message:
   def apply(userId: String, cmd: Cmd, body: String): Message = 
     new Message(userId: String, cmd: Cmd, Timestamp.now(), body: String)
 
+  def sendMsg(userId: String, body: String): Message = apply(userId, Cmd.Send, body)
+
   def isEncryptedTag(isEncrypted: Boolean): Char = if isEncrypted then 'E' else 'C'
 
-  enum DecodeError:
-    case InvalidMessage, DecryptionFailed, InvalidUserId, InvalidCmd, InvalidTime, InvalidBody
+  val FieldSep = ';'
+  val KeyValueSep = '='
+  val illegalFieldChars = Set(Message.KeyValueSep, Message.FieldSep)
 
+  enum DecodeError:
+    case InvalidMessage
+    case BodyNotLast
+    case DecryptionFailed
+    case InvalidKey(key: Key)
+
+  /** Decrypt a raw message (if encrypted) and parse it into a Message by searching for each Key. */
   def decode(raw: String, secretOpt: Option[String] = Some("unsecurePassword")): Either[DecodeError, Message] = 
+    // a hand-rolled parser aimed at being rather fast and give good parsing errors
+    // aborts if Key.Body is not the last key and if any key is missing or non-empty
     if raw.length < 2 then Left(DecodeError.InvalidMessage) 
     else
-      val decoded: Option[String] = 
+      val clearTextOpt: Option[String] = 
         if raw(0) == Message.isEncryptedTag(false) then Some(raw.drop(1))
         else if secretOpt.isDefined then Crypto.AES.decryptString(raw.drop(1), secretOpt.get)
         else None
-      if decoded.isEmpty then Left(DecodeError.DecryptionFailed) 
+      if clearTextOpt.isEmpty then Left(DecodeError.DecryptionFailed) 
       else
-        for
-          u <- decoded.get.valueOf(Key.UserId).toRight(DecodeError.InvalidUserId)
-          c <- decoded.get.valueOf(Key.Command).flatMap(Cmd.fromString).toRight(DecodeError.InvalidCmd)
-          t <- decoded.get.valueOf(Key.Time).flatMap(Timestamp.decode).toRight(DecodeError.InvalidTime)
-          b <- decoded.get.valueOf(Key.Body).toRight(DecodeError.InvalidBody)
-        yield Message(u, c, t, b)
-  end decode
-          
-  enum Key:
-    case UserId, Command, Time, Body
-    def keyString = this.toString
-    def withValue(value: String): String = s"$keyString=$value"
+        val msg: String = clearTextOpt.get
+        val keys: Array[Key] = Key.values
+        val keyStarts: Array[Int] = keys.map(k => msg.indexOf(k.keyString))
+        val notFound: Int = keyStarts.indexWhere(_ < 0)
+        if notFound >= 0 then Left(DecodeError.InvalidKey(keys(notFound)))
+        else 
+          val bodyStart = keyStarts.last
+          if bodyStart < 0 then Left(DecodeError.InvalidKey(Key.Body)) 
+          else if bodyStart < SumOfKeyLengths then Left(DecodeError.BodyNotLast)
+            inline def at(k: Key): Int = keyStarts(k.ordinal)
+            
+            inline def getValue(k: Key): Option[String] = 
+              val from: Int = at(k)
+              val value = msg.substring(from + k.keyString.length, msg.indexOf(FieldSep, from))
+              if value.isEmpty then None else Some(value)
 
+            for
+              u <- getValue(Key.UserId).toRight(DecodeError.InvalidKey(Key.UserId))
+              c <- getValue(Key.Command).flatMap(Cmd.fromString).toRight(DecodeError.InvalidKey(Key.Command))
+              t <- getValue(Key.Time).flatMap(Timestamp.decode).toRight(DecodeError.InvalidKey(Key.Time))
+              b <- Right(msg.substring(bodyStart + Key.Body.keyString.length))
+            yield Message(u, c, t, b)
+  end decode
+  
+  /** A message must contain all these keys and Key.Body must be the last key. */
+  enum Key: 
+    case UserId, Command, Time, Body // Body must be the last case for Message.decode to work properly
+    def keyString = toString + KeyValueSep
+    def withValue(value: String): String = s"$keyString$value"
+  
+  val SumOfKeyLengths: Int = Key.values.map(_.keyString).mkString.length
+
+  /** Values associated with Key.Command */
   enum Cmd:
-    case Ping, Login, Send 
+    case Ping, Init, Login, Send 
 
   object Cmd:
     def fromString(s: String): Option[Cmd] = 
       try Some(valueOf(s)) catch case e: IllegalArgumentException => None
-
-  extension (raw: String)
-    def valueOf(key: Message.Key): Option[String] = 
-      val keyString = s"${key.keyString}="
-      val startPos = raw.indexOf(keyString)
-      if startPos < 0 then None else 
-        val untilPos = if keyString == Key.Body.keyString then raw.length else
-          val i = raw.indexOf(';', startPos)
-          if i < 0 then raw.length else i
-        Some(raw.substring(startPos + keyString.length, untilPos))
 

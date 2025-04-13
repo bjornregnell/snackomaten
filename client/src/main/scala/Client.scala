@@ -1,8 +1,14 @@
 package snackomaten 
 
-class Client(val userId: String, masterPassword: String, val host: String = "bjornix.cs.lth.se", val port: Int = 8090):
-
+class Client(
+  val config: Config, 
+  val userId: String, 
+  val masterPassword: String, 
+  val host: String = "bjornix.cs.lth.se", 
+  val port: Int = 8090
+):
   def retryBackoffMillis(): Int = 2000 + util.Random().nextInt(5000)
+
   val MaxRetryMillis = 100_000
 
   val isBuffering = Concurrent.MutableFlag(false)
@@ -63,7 +69,7 @@ class Client(val userId: String, masterPassword: String, val host: String = "bjo
 
   def showMessage(m: Message): Unit = 
       if m.cmd == Message.Cmd.Send then 
-        Terminal.putGreen(s"Received from userId ${Console.YELLOW}${m.userId}${Console.GREEN} at ${m.time.toDate}:")
+        Terminal.putGreen(s"Received from ${Console.YELLOW}${m.userId}${Console.GREEN} at ${m.time.toDate}:")
         Terminal.put(m.body)
       else 
         Terminal.putYellow(s"Received unknown message from Server:\n$m")
@@ -96,7 +102,7 @@ class Client(val userId: String, masterPassword: String, val host: String = "bjo
   def helpText = """
     Type some text followed by ENTER to send a message to other connected clients.
     Type just ENTER to toggle buffering mode.
-    Type ? followed by ENTER for help.
+    Type /help followed by ENTER to see this help text again.
     Ctrl+D to quit.
     Ctrl+A to move to beginning of line.
     Ctrl+E to move to end of line.
@@ -107,16 +113,17 @@ class Client(val userId: String, masterPassword: String, val host: String = "bjo
   """
 
   def commandLoop(): Unit = 
+    Thread.sleep(500) // to wait a bit to allow receive loop sto start
     var continue = true
     while continue do
-      def bufferingState = if isBuffering.isFalse then "Buffering is OFF" else "Buffering is ON" 
-      val info = s"$bufferingState; type message from $userId> "
+      def bufferingState = if isBuffering.isFalse then "buf=OFF" else s"buf=ON, ${messageBuffer.size} in buf" 
+      val info = s"$bufferingState | Type /help or message from $userId> "
 
       if isBuffering.isFalse then Terminal.putGreen(info) else Terminal.putRed(info)
       
       val input = Terminal.awaitInput()
       if input == Terminal.CtrlD then continue = false 
-      else if input == "?" then Terminal.putYellow(helpText)
+      else if input == "/help" then Terminal.putYellow(helpText)
       else if input.isEmpty then 
         isBuffering.toggle() 
         if isBuffering.isFalse 
@@ -135,7 +142,7 @@ class Client(val userId: String, masterPassword: String, val host: String = "bjo
     Terminal.putYellow(s"Connecting to snackomaten.Server host=$host port=$port")
     awaitConnection()
     Terminal.putYellow(helpText)
-    Terminal.putGreen("You may want to start a another client in another terminal window with buffering mode toggled ON so you can type and send your messages without being interrupted by any incoming messages. Press ENTER to toggle buffering mode.")
+    Terminal.putGreen("Press ENTER to toggle buffering mode.\nYou may want to start a another client in another terminal window with buffering mode toggled ON so you can type and send your messages without being interrupted by any incoming messages.")
     spawnReceiveLoop()
     commandLoop()
   

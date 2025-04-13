@@ -15,8 +15,7 @@ object Terminal:
 
   def awaitInput(): String = util.Try(reader.readLine("", null: Character, "")).getOrElse(CtrlD)
 
-  def awaitSecret(prompt: String = "Enter secret: ", mask: Char = '*'): String = 
-    util.Try(reader.readLine(prompt, mask)).getOrElse(CtrlD)
+  def awaitSecret(mask: Char = '*'): String = util.Try(reader.readLine("", mask)).getOrElse(CtrlD)
 
   def prompt(s: String, color: String = BLUE) = print(s"$color$s$RESET")
 
