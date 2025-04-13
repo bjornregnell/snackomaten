@@ -60,7 +60,6 @@ class Config(userName: String):
             None
 
       if !Disk.isExisting(configFileName) then 
-        println(s"DEBUG loadConfigFromDiskOrCreate: Disk.isExisting(configFileName) = ${Disk.isExisting(configFileName) }")
         overwriteConfigWithDefault()
         default.toSeq
       else 
