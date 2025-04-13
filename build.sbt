@@ -39,7 +39,7 @@ lazy val client = (project in file("client"))
   .settings(
     name := "snackomatenClient",
     scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
-
+    console / initialCommands := """import snackomaten.*""",
     assembly / assemblyJarName := s"snackomatenClient-assembly-$snackomatenVersion.jar",
     assembly / mainClass := Some("snackomaten.ClientMain"),
   )
@@ -49,9 +49,7 @@ lazy val server = (project in file("server"))
   .settings(
     name := "snackomatenServer",
     scalacOptions := Seq("-encoding", "utf8", "-deprecation", "-unchecked", "-Werror", "-feature"),
-
     console / initialCommands := """import snackomaten.*""",
-
     assembly / assemblyJarName := s"snackomatenServer-assembly-$snackomatenVersion.jar",
     assembly / mainClass := Some("snackomaten.ServerMain"),
   )
