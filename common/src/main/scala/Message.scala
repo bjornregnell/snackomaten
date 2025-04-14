@@ -20,7 +20,7 @@ object Message:
   def apply(userId: String, cmd: Cmd, body: String): Message = 
     new Message(userId: String, cmd: Cmd, Timestamp.now(), body: String)
 
-  def sendMsg(userId: String, body: String): Message = apply(userId, Cmd.Send, body)
+  def sendText(userId: String, body: String): Message = apply(userId, Cmd.Send, body)
 
   def isEncryptedTag(isEncrypted: Boolean): Char = if isEncrypted then 'E' else 'C'
 

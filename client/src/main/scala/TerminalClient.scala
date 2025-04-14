@@ -153,14 +153,11 @@ class TerminalClient(
       do ()
   end awaitConnection
 
-  def send(msg: String): Unit = 
-    val m = Message(userId = userId, cmd = Message.Cmd.Send, body = msg).encode()
-    Terminal.putGreen(s"Sending '$msg' via $connectionOpt: isActive=$isActive")
-    try connectionOpt.get.write(m) 
+  def writeTextToServer(text: String): Unit =
+    try connectionOpt.get.write(text) 
     catch case e: Throwable => 
       Terminal.putRed(s"Error during send(): $e")
       closeConnection()
-      Terminal.alert(s"Message lost: $msg")  
       Terminal.putYellow("Try again later...")
 
   def showMessage(m: Message): Unit = 
@@ -213,8 +210,8 @@ class TerminalClient(
   """
   
   /** Awaits terminal input from user and acts on commands or sends messages. */
-  def commandLoop(): Unit = 
-    Thread.sleep(500) // to wait a bit to allow receive loop sto start
+  def sendLoop(): Unit = 
+    Thread.sleep(500) // wait a bit to allow receive loop to start
     var continue = true
     while continue do
       def bufferingState = if isBuffering.isFalse then "buf=OFF" else s"buf=ON, ${messageBuffer.size} in buf" 
@@ -238,19 +235,56 @@ class TerminalClient(
           Terminal.alert(s"Draining ${messageBuffer.size} messages from buffer:")
           messageBuffer.outAll().foreach(showMessage)
       else 
-        send(input)
+        val msg = Message.sendText(userId = userId, body = input)
+        Terminal.putGreen(s"Sending '$msg' via $connectionOpt: isActive=$isActive")
+        writeTextToServer(msg.encode())
     end while
     quit.setTrue()
     closeConnection()
     Terminal.putGreen(s"Goodbye $userId! snackomaten.Client terminates")
+
+  object login:
+    import Crypto.{DiffieHellman as DH} 
+    lazy val sessionId = DH.probablePrime()
+    lazy val clientKeys = DH.generateKeyPair(sessionId)
+
+    private val atomicSecret = java.util.concurrent.atomic.AtomicReference[BigInt](null)
+
+    def setSharedSecret(serverKeys: DH.KeyPair, clientKeys: DH.KeyPair) = 
+      atomicSecret.set(DH.sharedSecret(serverKeys.publicKey, clientKeys.privateKey, sessionId))
+    
+    def getSharedSecret(): Option[BigInt] = Option(atomicSecret.get())
+
+    def apply(): Unit =
+      if connectionOpt.isEmpty then awaitConnection() 
+      connectionOpt match
+        case None => Terminal.putRed("No connection."); sys.exit(1)
+        case Some(connection) =>
+          val body = s"$sessionId${Message.FieldSep}${clientKeys.publicKey}"
+          writeTextToServer(Message(userId, Message.Cmd.Connect, body).encode(secretOpt = None))
+          /* TODO 
+
+            on client side: 
+              1. await Confirm from server with serverKeys.publicKey in body
+              2. compute and remember shared secret 
+              3. send encrypted with shared secret Login msg with password hash in body 
+              4. await login confirmation 
+            
+            on server side:
+              1. do not broadcast Connection message, but handle Connection msg and remember sessionId+clientKeys.publicKey
+              2. compute shared secret and send back confirmation with serverKeys.publicKey 
+              3. await encrypted Login message with password hash and store if new user or validate password hash if existing
+              4. if authorized then send login confirmation or close connection
+          */
+
   
   /** Starts this client. Awaits connection to server before `spawnReceiveLoop()` and `commandLoop()`. */
   def start(): Unit = 
     Terminal.putYellow(s"Connecting to snackomaten.Server host=$host port=$port")
-    awaitConnection()
+    login()
     Terminal.putYellow(helpText)
     Terminal.putGreen("Press ENTER to toggle buffering mode.\nYou may want to start a another client in another terminal window with buffering mode toggled ON so you can type and send your messages without being interrupted by any incoming messages.")
     spawnReceiveLoop()
-    commandLoop()
+    sendLoop()
   
 end TerminalClient
