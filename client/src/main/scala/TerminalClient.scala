@@ -260,6 +260,8 @@ class TerminalClient(
     def getSharedSecret(): Option[BigInt] = Option(atomicSecret.get())
 
     def apply(): Unit =
+      Terminal.putYellow(s"Attempting login to snackomaten.Server host=$host port=$port")
+
       if connectionOpt.isEmpty then awaitConnection() 
       connectionOpt match
         case None => Terminal.putRed("No connection."); sys.exit(1)
@@ -282,9 +284,8 @@ class TerminalClient(
           */
 
   
-  /** Starts this client. Awaits connection to server before `spawnReceiveLoop()` and `commandLoop()`. */
+  /** Starts this client. Awaits connection to server in `login()` before starting `spawnReceiveLoop()` and `commandLoop()`. */
   def start(): Unit = 
-    Terminal.putYellow(s"Connecting to snackomaten.Server host=$host port=$port")
     login()
     spawnReceiveLoop()
     sendLoop()
