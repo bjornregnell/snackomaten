@@ -211,7 +211,11 @@ class TerminalClient(
   
   /** Awaits terminal input from user and acts on commands or sends messages. */
   def sendLoop(): Unit = 
-    Thread.sleep(500) // wait a bit to allow receive loop to start
+    Terminal.putYellow(helpText)
+    Terminal.putGreen("Press ENTER to toggle buffering mode.\nYou may want to start a another client in another terminal window with buffering mode toggled ON so you can type and send your messages without being interrupted by any incoming messages.")
+
+    Thread.sleep(500) // wait a bit to allow receive loop to get started
+
     var continue = true
     while continue do
       def bufferingState = if isBuffering.isFalse then "buf=OFF" else s"buf=ON, ${messageBuffer.size} in buf" 
@@ -282,8 +286,6 @@ class TerminalClient(
   def start(): Unit = 
     Terminal.putYellow(s"Connecting to snackomaten.Server host=$host port=$port")
     login()
-    Terminal.putYellow(helpText)
-    Terminal.putGreen("Press ENTER to toggle buffering mode.\nYou may want to start a another client in another terminal window with buffering mode toggled ON so you can type and send your messages without being interrupted by any incoming messages.")
     spawnReceiveLoop()
     sendLoop()
   
