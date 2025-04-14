@@ -5,7 +5,7 @@ case class Message(userId: String, cmd: Message.Cmd, time: Timestamp, body: Stri
     import Message.Key.*, Message.FieldSep
     val msg = java.lang.StringBuilder()
       .append(UserId.withValue(userId))                    .append(FieldSep)
-      .append(Command.withValue(Message.Cmd.Send.toString)).append(FieldSep)
+      .append(Command.withValue(Message.Cmd.Send.ordinal.toString)).append(FieldSep)
       .append(Time.withValue(Timestamp.now().encode))      .append(FieldSep)
       .append(Body.withValue(body))
 
@@ -45,6 +45,7 @@ object Message:
         if raw(0) == Message.isEncryptedTag(false) then Some(raw.drop(1))
         else if secretOpt.isDefined then Crypto.AES.decryptString(raw.drop(1), secretOpt.get)
         else None
+
       if clearTextOpt.isEmpty then Left(DecodeError.DecryptionFailed) 
       else
         val msg: String = clearTextOpt.get
@@ -56,18 +57,20 @@ object Message:
           val bodyStart = keyStarts.last
           if bodyStart < 0 then Left(DecodeError.InvalidKey(Key.Body)) 
           else if bodyStart < SumOfKeyLengths then Left(DecodeError.BodyNotLast)
+          else
             inline def at(k: Key): Int = keyStarts(k.ordinal)
             
-            inline def getValue(k: Key): Option[String] = 
+            inline def valueOf(k: Key): Option[String] = 
               val from: Int = at(k)
               val value = msg.substring(from + k.keyString.length, msg.indexOf(FieldSep, from))
               if value.isEmpty then None else Some(value)
 
+            import DecodeError.*, Key.*
             for
-              u <- getValue(Key.UserId).toRight(DecodeError.InvalidKey(Key.UserId))
-              c <- getValue(Key.Command).flatMap(Cmd.fromString).toRight(DecodeError.InvalidKey(Key.Command))
-              t <- getValue(Key.Time).flatMap(Timestamp.decode).toRight(DecodeError.InvalidKey(Key.Time))
-              b <- Right(msg.substring(bodyStart + Key.Body.keyString.length))
+              u <- valueOf(UserId) .toRight(InvalidKey(UserId))
+              c <- valueOf(Command).flatMap(Cmd.decode).toRight(InvalidKey(Command))
+              t <- valueOf(Time)   .flatMap(Timestamp.decode).toRight(InvalidKey(Time))
+              b <- Right(msg.substring(bodyStart + Body.keyString.length))
             yield Message(u, c, t, b)
   end decode
   
@@ -81,9 +84,8 @@ object Message:
 
   /** Values associated with Key.Command */
   enum Cmd:
-    case Ping, Init, Login, Send 
+    case Connect, Login, Send 
 
   object Cmd:
-    def fromString(s: String): Option[Cmd] = 
-      try Some(valueOf(s)) catch case e: IllegalArgumentException => None
+    def decode(s: String): Option[Cmd] = s.toIntOption.flatMap(Cmd.values.lift) 
 
