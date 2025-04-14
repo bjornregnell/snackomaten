@@ -273,13 +273,13 @@ class TerminalClient(
             on client side: 
               1. await Confirm from server with serverKeys.publicKey in body
               2. compute and remember shared secret 
-              3. send encrypted with shared secret Login msg with password hash in body 
+              3. send encrypted with shared secret Login msg with password in body 
               4. await login confirmation 
             
             on server side:
               1. do not broadcast Connection message, but handle Connection msg and remember sessionId+clientKeys.publicKey
               2. compute shared secret and send back confirmation with serverKeys.publicKey 
-              3. await encrypted Login message with password hash and store if new user or validate password hash if existing
+              3. await encrypted Login message with password and store if new user or validate password if existing
               4. if authorized then send login confirmation or close connection
           */
 
