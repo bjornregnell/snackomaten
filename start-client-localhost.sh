@@ -1,1 +1,1 @@
-java -jar client/target/scala-3.6.4/snackomatenClient-assembly-0.4.0.jar --host localhost --password $(keyring get snackomaten testUser)  --user testUser
+java -jar client/target/scala-3.7.0-RC4/snackomatenClient-assembly-0.4.0.jar --host localhost --password $(keyring get snackomaten testUser)  --dir testUser2 --pid 20010101-9999

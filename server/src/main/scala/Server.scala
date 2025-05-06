@@ -1,8 +1,39 @@
 package snackomaten 
 
 import java.io.IOException
+import snackomaten.Disk.createDirIfNotExist
+import snackomaten.SecureKeyValueStore.Vault.VaultOpt
+
+object Server:
+  val Dir = Disk.userDir() + "/snackomaten-server"
+  createDirIfNotExist(Dir)
+  val VaultFile   = s"$Dir/vault.txt"
+  val MpwFile     = s"$Dir/mpv.txt"
+  val UsersFile   = s"$Dir/users.tsv"
+  val UpdatesFile = s"$Dir/updates.txt"
+  val TestUser = User.fromSepValues(s"Svensson\tSven\tnomail@nowhere.com\t20010101-2345").get
+  if !Disk.isExisting(UsersFile) then
+    Terminal.putYellow(s"Creating $UsersFile")
+    Disk.saveLines(Seq(User.toSepValues(TestUser)), fileName = UsersFile)
 
 class Server(val port: Int, masterPassword: String):
+
+  val vaultOpt: VaultOpt[String, String] = SecureKeyValueStore.Vault.openVaultOf[String, String](
+      masterPw = masterPassword,
+      mpwFile =   java.io.File(Server.MpwFile),
+      vaultFile = java.io.File(Server.VaultFile),
+      tmpFile =   java.io.File(Server.UpdatesFile), 
+    )
+
+  val vault: SecureKeyValueStore.Vault[String, String] = vaultOpt match
+    case VaultOpt(Some(vault), isMasterPasswordFileCreated, saltOpt) => 
+      if isMasterPasswordFileCreated then Terminal.putYellow(s"Created ${Server.MpwFile}")
+      vault
+    case _ =>
+      Terminal.putRed(s"Failed to open ${Server.VaultFile}")
+      System.exit(1)
+      null
+
   val quit = Concurrent.MutableLatch()
 
   import scala.jdk.CollectionConverters.*
@@ -10,7 +41,7 @@ class Server(val port: Int, masterPassword: String):
 
   def timestamp: String = java.util.Date().toString
 
-  def outputPrompt: String = s"[$timestamp]"
+  def outputPrompt: String = s"${Console.GREEN}[$timestamp]${Console.RESET}"
 
   lazy val serverPort = Network.openServerPort(port)
 
@@ -30,7 +61,7 @@ class Server(val port: Int, masterPassword: String):
     end while
     Terminal.putGreen("spawnAcceptLoop is terminating now.")
 
-  def spawnReceiveLoop(connection: Network.Connection) =  Concurrent.Run:
+  def spawnReceiveLoop(connection: Network.Connection): Unit =  Concurrent.Run:
     def cleanUp(): Unit = 
       try
         allConnections.deleteIfPresent(connection)
@@ -64,14 +95,30 @@ class Server(val port: Int, masterPassword: String):
         log(s"Processing took $elapsed ms, virtual thread will sleep for $backoff ms to allow other threads to work")
         Thread.sleep(backoff)
       end while
+      cleanUp()
     catch case e: Throwable => 
       Terminal.putRed(s"Unexpected error in spawnReceiveLoop: $e")
       cleanUp()
     end try
   end spawnReceiveLoop
 
+  def spawnCommandLoop(): Unit = Concurrent.Run:
+    Terminal.putYellow("Type Q <ENTER> to quit.")
+    while 
+      val input = Terminal.awaitInput()
+      input != "Q"
+    do ()
+    quit.setTrue()
+    
   def start(): Unit = 
-    log(s"Server starting at: $serverPort") 
+    if !Disk.isExisting(Server.Dir) then 
+      println(s"Creating Server.Dir: ${Server.Dir}")
+      Disk.createDirIfNotExist(Server.Dir)
+    else 
+      println(s"Existing Server.Dir: ${Server.Dir}")
+
+    startMsg() 
     spawnAcceptLoop()
+    spawnCommandLoop()
     quit.waitUntilTrue() 
     log("Server terminates. Goodbye!")

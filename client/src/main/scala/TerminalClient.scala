@@ -7,7 +7,7 @@ object TerminalClient:
 
     if args.contains("-h") || args.contains("--help") || args.contains("-v") || args.contains("--version") then 
       Terminal.put(s"Welcome to snackomaten version ???")
-      Terminal.putYellow("optional args: --password mypassword --host localhost --port 8090 --user MyUserName")
+      Terminal.putYellow("optional args: ???")
       sys.exit(0)
     end if
 
@@ -15,8 +15,6 @@ object TerminalClient:
       args.sliding(2).filter(xs => xs(0).startsWith("-")).map(xs => xs(0).dropWhile(_ == '-') -> xs(1)).toMap
 
     def arg(key: String): Option[String] = argsMap.get(key)
-
-    def generateUserName() = java.util.UUID.randomUUID().toString.take(7)
 
     def readUntilValid(prompt: String, errMsg: String, isSecret: Boolean, maxLen: Int = 100)(isValid: String => Boolean) = 
       Terminal.putGreen(prompt)
@@ -34,58 +32,52 @@ object TerminalClient:
       input.filter(_ >= ' ').take(maxLen)
     end readUntilValid
     
-    val savedUsers = Config.userDirsInConfigDir()
+    val localUserName: String = arg("dir").getOrElse(Option(System.getProperty("user.name")).getOrElse("TestUser"))
 
-    val userName: String = arg("user").getOrElse:
-      val correct = "(one word, only letters or digits, max 30 chars)"
-      def read(prompt: String) = 
-        readUntilValid(prompt, errMsg = s"must be non-empty and only letters and digits and max 30 characters!", 
-          isSecret = false, maxLen = 30)(input => input.nonEmpty && input.forall(ch => ch.isLetterOrDigit))
-      end read
-      if savedUsers.length == 1 then 
-        savedUsers.head
-      else if savedUsers.length > 1 then  
-        Terminal.putYellow(s"Configs exists for these users: ${savedUsers.mkString(",")}")
-        read(s"Enter existing or new user nick name $correct:")
-      else 
-        read(s"Enter user nick name $correct:")
-      end if
+    val config = Config(localUserName)
 
-    val config = Config(userName)
+    Terminal.putGreen(s"User config in ${Config.configBaseDir}/$localUserName")
 
-    Disk.createDirIfNotExist(config.Store.configDir)
+    val savedUsers = Config.usersInConfigDir()
 
-    val isNewUser = !savedUsers.contains(userName) 
+    if savedUsers.length > 1 then 
+      val s = if savedUsers.length > 2 then "s" else " "
+      Terminal.putYellow(s"Other user$s in ${Config.configBaseDir}: ${(savedUsers diff Seq(localUserName)).mkString(",")}")
 
-    if isNewUser then Terminal.putYellow(s"Adding new user config: ${config.Store.configFileName}")
-    Terminal.putYellow(s"Users with config in ${Config.configBaseDir}/\n${Config.userDirsInConfigDir().mkString("\n")}")
-    
-    var hashOpt: Option[String] = None
+    val pidHash: String = arg("pid").map(pid => Crypto.SHA.hash(pid)).orElse(config.personalIdHashOpt)
+      .getOrElse:
+        Terminal.putGreen("Your national id (personnummer) will not be transmitted, only a one-way hash is sent to snackomaten.")
 
-    val mpw = arg("password").getOrElse:
-      val input = readUntilValid(s"Enter password for $userName:", "must be non-empty!", isSecret = true)(_.nonEmpty)
-      val hashOpt = Some(Crypto.SHA.hash(input))
-      if config.passwordHashOpt.isEmpty then 
-        config.setPasswordHash(hashOpt.get)
-        Terminal.put("Show password so you can copy paste it to a password manager? (Y/n)")
+        def checkPersonalId(pnr: String): Boolean = 
+          pnr.length == 13 && pnr(8) == '-' && pnr.patch(8, "", 1).forall(_.isDigit) 
+
+        val input = 
+          readUntilValid(s"Enter national id (personnummer as in 20010101-2345):", 
+            "use this format: 20010101-2345", isSecret = false)(checkPersonalId)
+        
+        val hash = Crypto.SHA.hash(input)
+
+        config.setPersonalHash(hash)
+
+        hash
+
+    val pw: String = 
+      arg("password").getOrElse:
+        val input = readUntilValid(s"Enter password for $localUserName:", "must be non-empty!", isSecret = true)(_.nonEmpty)
+        Terminal.put("Show what you typed so you can copy paste it to a password manager? (Y/n)")
         if Terminal.awaitInput().toLowerCase.startsWith("y") then 
           Terminal.putYellow("You typed this password:")
           Terminal.put(input)
-      end if
-      input
-
-    if hashOpt.isEmpty then hashOpt = Some(Crypto.SHA.hash(mpw))
-
-    if config.passwordHashOpt.nonEmpty && hashOpt.nonEmpty && hashOpt.get != config.passwordHashOpt.get then
-      Terminal.putRed("Bad password! Entered password hash does not match stored hash.")
-      sys.exit(1)
-    else if isNewUser then Terminal.putGreen("Password hash saved!")
-    else Terminal.putGreen("Password OK!")
+        end if
+        input
 
     val host = arg("host").getOrElse(config.globalHost)
     val port = arg("port").flatMap(_.toIntOption).getOrElse(config.globalPort)
 
-    val client = new TerminalClient(config = config, masterPassword = mpw, host = host, port = port, userId = userName)
+    val client = new TerminalClient(
+      config = config, localUserId = localUserName, password = pw, personalIdHash = pidHash, 
+      host = host, port = port
+    )
 
     client.start()
 
@@ -93,8 +85,9 @@ object TerminalClient:
 
 class TerminalClient(
   val config: Config, 
-  val userId: String, 
-  val masterPassword: String, 
+  val localUserId: String, 
+  val password: String, 
+  val personalIdHash: String,
   val host: String = "bjornix.cs.lth.se", 
   val port: Int = 8090
 ):
@@ -219,7 +212,7 @@ class TerminalClient(
     var continue = true
     while continue do
       def bufferingState = if isBuffering.isFalse then "buf=OFF" else s"buf=ON, ${messageBuffer.size} in buf" 
-      val info = s"$bufferingState. Type /help or message from $userId> "
+      val info = s"$bufferingState. Type /help or message from $localUserId> "
 
       //if isBuffering.isFalse then Terminal.putGreen(info) else Terminal.putCyan(info)
       Terminal.putCyan(info)
@@ -239,13 +232,13 @@ class TerminalClient(
           Terminal.alert(s"Draining ${messageBuffer.size} messages from buffer:")
           messageBuffer.outAll().foreach(showMessage)
       else 
-        val msg = Message.sendText(userId = userId, body = input)
+        val msg = Message.sendText(userId = localUserId, body = input)
         Terminal.putGreen(s"Sending '$msg' via $connectionOpt: isActive=$isActive")
         writeTextToServer(msg.encode())
     end while
     quit.setTrue()
     closeConnection()
-    Terminal.putGreen(s"Goodbye $userId! snackomaten.Client terminates")
+    Terminal.putGreen(s"Goodbye $localUserId! snackomaten.Client terminates")
 
   object login:
     import Crypto.{DiffieHellman as DH} 
@@ -267,7 +260,7 @@ class TerminalClient(
         case None => Terminal.putRed("No connection."); sys.exit(1)
         case Some(connection) =>
           val body = s"$sessionId${Message.FieldSep}${clientKeys.publicKey}"
-          writeTextToServer(Message(userId, Message.Cmd.Connect, body).encode(secretOpt = None))
+          writeTextToServer(Message(localUserId, Message.Cmd.Connect, body).encode(secretOpt = None))
           /* TODO 
 
             on client side: 

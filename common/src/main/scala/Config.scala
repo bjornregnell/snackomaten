@@ -2,11 +2,11 @@ package snackomaten
 
 object Config:
   val configBaseDir = 
-    val dir = Disk.userDir() + s"/snackomaten/users"
+    val dir = Disk.userDir() + s"/snackomaten"
     Disk.createDirIfNotExist(dir)
     dir
   
-  def userDirsInConfigDir(): Seq[String] = 
+  def usersInConfigDir(): Seq[String] = 
     Disk.list(configBaseDir).filter(f => java.io.File(s"$configBaseDir/$f").isDirectory())
 
   val default: Map[String, String] = Map(
@@ -29,16 +29,20 @@ object Config:
         Terminal.alert(s"Snackomaten requires at least Java 21")
         throw Error("Java upgrade needed.")
 
-class Config(userName: String):
+class Config(userConfigDir: String):
   import Config.* 
 
   def globalHost: String = Store.getString("globalHost").orElse(default.get("globalHost")).get
+  
   def globalPort: Int    = Store.getInt("globalPort").orElse(default.get("globalPort").flatMap(_.toIntOption)).get
-  def passwordHashOpt: Option[String] = Store.getString("passwordHash")
-  def setPasswordHash(hash: String): Unit = Store.setString("passwordHash", hash)
+  
+  def personalIdHashOpt: Option[String] = Store.getString("personalIdHash")
+  
+  def setPersonalHash(hash: String): Unit = Store.setString("personalIdHash", hash)
+
 
   object Store:
-    val configDir = s"$configBaseDir/$userName"
+    val configDir = s"$configBaseDir/$userConfigDir"
 
     val configFileName = s"$configDir/config.txt"
 

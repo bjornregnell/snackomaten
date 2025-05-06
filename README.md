@@ -5,7 +5,7 @@ A minimalistic client-server for students nothing at all like discord or canvas.
 ## Dependencies
 
 * Java >=21: `sdk install java 21.0.6-tem` 
-* Scala >= 3.5: `sdk install scala` https://scala-lang.org/download/
+* Scala >= 3.7.0-RC4: `sdk install scala` https://scala-lang.org/download/
 * sbt >= 1.10: `sdk install sbt` https://www.scala-sbt.org/download
 * keyring or similar to store master password: `sudo apt install python3-keyring`
 

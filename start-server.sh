@@ -1,1 +1,1 @@
-java -jar server/target/scala-3.6.4/snackomatenServer-assembly-0.4.0.jar 8090 $(keyring get snackomaten server)
+java -jar server/target//scala-3.7.0-RC4/snackomatenServer-assembly-0.4.0.jar 8090 $(keyring get snackomaten server)
