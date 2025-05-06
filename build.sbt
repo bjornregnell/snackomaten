@@ -6,7 +6,7 @@ lazy val jlineVer = "3.29.0" // https://github.com/jline/jline3
 
 ThisBuild / organization := "se.bjornregnell"
 ThisBuild / version      := snackomatenVersion
-ThisBuild / scalaVersion := "3.6.4"
+ThisBuild / scalaVersion := "3.7.0-RC4"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
